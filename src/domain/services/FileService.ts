@@ -32,13 +32,25 @@ export class FileService {
     // Calculer le checksum
     const checksum = crypto.createHash('md5').update(data.buffer).digest('hex');
 
-    // Vérifier si le fichier existe déjà (par checksum)
-    const existingFile = await this.fileRepository.findByChecksum(checksum);
-    if (existingFile && existingFile.userId === data.userId) {
-      throw new Error('Ce fichier existe déjà');
+    // Générer un nom unique si le fichier existe déjà dans le même dossier
+    let finalOriginalName = data.originalName;
+    let counter = 1;
+    
+    // Vérifier s'il existe déjà un fichier avec le même nom dans le même dossier
+    while (true) {
+      const existingFileWithName = await this.fileRepository.findByFolderIdAndName(data.folderId, finalOriginalName);
+      if (!existingFileWithName) {
+        break; // Nom unique trouvé
+      }
+      
+      // Générer le nouveau nom avec suffixe incrémentiel
+      counter++;
+      const nameWithoutExtension = data.originalName.replace(/\.[^/.]+$/, '');
+      const extension = this.getFileExtension(data.originalName);
+      finalOriginalName = `${nameWithoutExtension}-${counter}${extension}`;
     }
 
-    const slug = this.generateSlug(data.originalName.replace(/\.[^/.]+$/, ""));
+    const slug = this.generateSlug(finalOriginalName.replace(/\.[^/.]+$/, ""));
     
     // Générer un nom temporaire pour la création initiale
     const timestamp = Date.now();
@@ -52,7 +64,7 @@ export class FileService {
     const tempFile = new File(
       '', // L'ID sera généré par le repository
       `${tempName}${extension}`,
-      data.originalName,
+      finalOriginalName, // Utiliser le nom final avec incrémentation
       slug,
       data.mimeType,
       data.buffer.length,
@@ -77,7 +89,7 @@ export class FileService {
     const finalFile = new File(
       savedFile.id,
       physicalName,
-      data.originalName,
+      finalOriginalName, // Utiliser le nom final avec incrémentation
       slug,
       data.mimeType,
       data.buffer.length,

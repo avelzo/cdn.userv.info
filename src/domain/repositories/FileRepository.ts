@@ -4,6 +4,7 @@ export interface FileRepository {
   findById(id: string): Promise<File | null>;
   findByPath(userId: string, path: string): Promise<File | null>;
   findByFolderId(folderId: string): Promise<File[]>;
+  findByFolderIdAndName(folderId: string, originalName: string): Promise<File | null>;
   findByUserId(userId: string): Promise<File[]>;
   findByChecksum(checksum: string): Promise<File | null>;
   create(file: File): Promise<File>;

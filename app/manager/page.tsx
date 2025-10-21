@@ -34,6 +34,9 @@ export default function MediaManager() {
   const [uploading, setUploading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
+  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [creatingFolder, setCreatingFolder] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ID utilisateur de test - en production, cela viendrait de l'authentification
@@ -108,7 +111,49 @@ export default function MediaManager() {
     }
   };
 
-  const handleDeleteFile = (file: FileItem) => {
+  const createFolder = async () => {
+    if (!newFolderName.trim() || !selectedFolder) {
+      alert('Veuillez saisir un nom de dossier valide');
+      return;
+    }
+
+    setCreatingFolder(true);
+    try {
+      const response = await fetch('/api/folders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newFolderName.trim(),
+          parentId: selectedFolder,
+          userId: TEST_USER_ID,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Erreur ${response.status}: ${errorData}`);
+      }
+
+      const result = await response.json();
+      console.log('Dossier créé:', result);
+      
+      // Recharger les dossiers
+      await loadFolders();
+      
+      // Fermer le dialog et réinitialiser
+      setShowNewFolderDialog(false);
+      setNewFolderName('');
+    } catch (error) {
+      console.error('Erreur lors de la création du dossier:', error);
+      alert('Erreur lors de la création du dossier: ' + (error as Error).message);
+    } finally {
+      setCreatingFolder(false);
+    }
+  };
+
+  const handleDeleteFile = async (file: FileItem) => {
     setFileToDelete(file);
     setShowDeleteConfirm(true);
   };
@@ -329,7 +374,7 @@ export default function MediaManager() {
         >
           <span className="text-yellow-600">📁</span>
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {folder.name}
+            {folder.isRoot ? 'Disque' : folder.name}
           </span>
         </div>
         {children.map(child => renderFolderTree(child.id, level + 1))}
@@ -382,7 +427,10 @@ export default function MediaManager() {
                 </>
               )}
             </button>
-            <button className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2">
+            <button 
+              onClick={() => setShowNewFolderDialog(true)}
+              className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
+            >
               <span>📁</span>
               Nouveau dossier
             </button>
@@ -638,6 +686,63 @@ export default function MediaManager() {
                 className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
               >
                 Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de création de dossier */}
+      {showNewFolderDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Créer un nouveau dossier
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Le dossier sera créé dans : <span className="font-medium">{folders.find(f => f.id === selectedFolder)?.name || 'Disque'}</span>
+            </p>
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="Nom du dossier"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !creatingFolder) {
+                  createFolder();
+                }
+                if (e.key === 'Escape') {
+                  setShowNewFolderDialog(false);
+                  setNewFolderName('');
+                }
+              }}
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowNewFolderDialog(false);
+                  setNewFolderName('');
+                }}
+                disabled={creatingFolder}
+                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg transition-colors duration-200 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={createFolder}
+                disabled={creatingFolder || !newFolderName.trim()}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {creatingFolder ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    Création...
+                  </>
+                ) : (
+                  'Créer'
+                )}
               </button>
             </div>
           </div>

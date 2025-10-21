@@ -33,6 +33,17 @@ export class PrismaFileRepository implements FileRepository {
     return files.map(this.toDomain);
   }
 
+  async findByFolderIdAndName(folderId: string, originalName: string): Promise<File | null> {
+    const file = await prisma.file.findFirst({
+      where: { 
+        folderId,
+        originalName
+      },
+      include: { metadata: true },
+    });
+    return file ? this.toDomain(file) : null;
+  }
+
   async findByUserId(userId: string): Promise<File[]> {
     const files = await prisma.file.findMany({
       where: { userId },
