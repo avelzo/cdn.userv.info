@@ -25,7 +25,7 @@ interface FolderItem {
 }
 
 export default function MediaManager() {
-  const [selectedFolder, setSelectedFolder] = useState<string>("root");
+  const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [folders, setFolders] = useState<FolderItem[]>([]);
@@ -39,16 +39,30 @@ export default function MediaManager() {
   // ID utilisateur de test - en production, cela viendrait de l'authentification
   const TEST_USER_ID = "68f6914dfac6d73b4751e944";
 
-  // Fonctions utilitaires pour construire les URLs
-  const getThumbnailUrl = (fileUrl: string | undefined, fileName: string, size: 'small' | 'medium') => {
-    if (fileUrl) {
-      return fileUrl.replace('/files/', '/thumbs/').replace(/\.[^/.]+$/, `-${size}.jpg`);
+  // Fonction utilitaire pour obtenir l'URL de base
+  const getBaseUrl = () => {
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
     }
-    return `/uploads/users/${TEST_USER_ID}/thumbs/${fileName.replace(/\.[^/.]+$/, '')}-${size}.jpg`;
+    return 'http://localhost:3000';
+  };
+
+  // Fonctions utilitaires pour construire les URLs complètes
+  const getThumbnailUrl = (fileUrl: string | undefined, fileName: string, size: 'small' | 'medium') => {
+    const baseUrl = getBaseUrl();
+    if (fileUrl) {
+      // Extraire le nom du fichier de l'URL existante
+      const fileNameFromUrl = fileUrl.split('/').pop() || fileName;
+      const fileNameWithoutExt = fileNameFromUrl.replace(/\.[^/.]+$/, '');
+      return `${baseUrl}/api/uploads/users/${TEST_USER_ID}/thumbs/${fileNameWithoutExt}-${size}.jpg`;
+    }
+    const fileNameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+    return `${baseUrl}/api/uploads/users/${TEST_USER_ID}/thumbs/${fileNameWithoutExt}-${size}.jpg`;
   };
 
   const getFileUrl = (fileUrl: string | undefined, fileName: string) => {
-    return fileUrl || `/uploads/users/${TEST_USER_ID}/files/${fileName}`;
+    const baseUrl = getBaseUrl();
+    return fileUrl || `${baseUrl}/api/uploads/users/${TEST_USER_ID}/files/${fileName}`;
   };
 
   const handleDeleteFile = (file: FileItem) => {
@@ -95,7 +109,7 @@ export default function MediaManager() {
   }, []);
 
   useEffect(() => {
-    if (selectedFolder && selectedFolder !== 'root') {
+    if (selectedFolder && selectedFolder !== "" && selectedFolder !== "root") {
       loadFolderContents(selectedFolder);
     } else {
       setFiles([]);
@@ -310,7 +324,7 @@ export default function MediaManager() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || selectedFolder === 'root'}
+              disabled={uploading || selectedFolder === 'root' || selectedFolder === ''}
               className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
             >
               {uploading ? (
@@ -402,7 +416,7 @@ export default function MediaManager() {
             ))}
           </div>
 
-          {files.length === 0 && selectedFolder !== 'root' && (
+          {files.length === 0 && selectedFolder !== 'root' && selectedFolder !== '' && (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">📁</div>
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
@@ -414,7 +428,7 @@ export default function MediaManager() {
             </div>
           )}
 
-          {selectedFolder === 'root' && (
+          {(selectedFolder === '' || selectedFolder === 'root') && (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">🗂️</div>
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
