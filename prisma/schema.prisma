@@ -1,0 +1,91 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  username  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  folders Folder[]
+  files   File[]
+
+  @@map("users")
+}
+
+model Folder {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String
+  path        String
+  parentId    String?  @db.ObjectId
+  isRoot      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String   @db.ObjectId
+
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent       Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  children     Folder[] @relation("FolderHierarchy")
+  files        File[]
+
+  @@unique([userId, path])
+  @@map("folders")
+}
+
+model File {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  originalName String
+  slug         String
+  mimeType     String
+  size         Int
+  path         String
+  url          String?
+  checksum     String
+  isPublic     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  userId       String   @db.ObjectId
+  folderId     String   @db.ObjectId
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  // Metadata
+  metadata FileMetadata?
+
+  @@unique([userId, path])
+  @@map("files")
+}
+
+model FileMetadata {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  fileId   String @unique @db.ObjectId
+  width    Int?
+  height   Int?
+  duration Int?   // for videos/audio in seconds
+  bitrate  Int?   // for videos/audio
+  format   String?
+  
+  // Relations
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@map("file_metadata")
+}
