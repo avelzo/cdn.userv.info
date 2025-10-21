@@ -6,17 +6,17 @@ The root cause of the folder ID issues was a **database connection problem** in 
 
 ### Wrong Configuration
 ```bash
-DATABASE_URL="mongodb://localhost:27017/cdn"
+DATABASE_URL="mongodb://localhost:27017/cdn_userv"
 ```
 
 ### Correct Configuration  
 ```bash
-DATABASE_URL="mongodb://localhost:27017/cdn_userv"
+DATABASE_URL="mongodb://localhost:27017/cdn"
 ```
 
 ## Impact
 
-When using the wrong database name (`cdn` instead of `cdn_userv`):
+When using the wrong database name (`cdn_userv` instead of `cdn`):
 
 ❌ **What was happening:**
 - Application couldn't find existing folders and files
