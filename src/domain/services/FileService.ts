@@ -61,7 +61,7 @@ export class FileService {
       data.userId,
       data.folderId,
       data.isPublic || false,
-      `/uploads/users/${data.userId}/files/${tempName}${extension}`,
+`/uploads/users/${data.userId}/files/${tempName}${extension}`,
       await this.extractMetadata(data.buffer, data.mimeType)
     );
 

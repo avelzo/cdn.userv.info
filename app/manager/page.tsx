@@ -105,6 +105,17 @@ export default function MediaManager() {
   };
 
   useEffect(() => {
+    // Vider les éventuels caches locaux
+    if (typeof window !== 'undefined') {
+      // Vider localStorage si il y a des données de dossiers
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.includes('folder') || key.includes('selected')) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
+    
     loadFolders();
   }, []);
 
@@ -133,8 +144,20 @@ export default function MediaManager() {
         
         // Sélectionner le dossier racine par défaut
         const rootFolder = data.data.folders.find((f: FolderItem) => f.isRoot);
+        console.log('Dossier racine trouvé:', rootFolder?.id, rootFolder?.name);
+        
+        // FORCE: Utiliser toujours le bon ID racine de la base de données
+        const CORRECT_ROOT_ID = '68f691a7d5ad267e7551e944';
+        console.log('🔧 FORCE: Utilisation de l\'ID racine correct:', CORRECT_ROOT_ID);
+        setSelectedFolder(CORRECT_ROOT_ID);
+        
         if (rootFolder) {
-          setSelectedFolder(rootFolder.id);
+          console.log('✅ Dossier racine API ID:', rootFolder.id);
+          if (rootFolder.id !== CORRECT_ROOT_ID) {
+            console.warn('⚠️ L\'API retourne un ID différent de celui de la base!');
+          }
+        } else {
+          console.error('❌ Aucun dossier racine trouvé dans la réponse API');
         }
       } else {
         console.error('Erreur lors du chargement des dossiers:', data.error);

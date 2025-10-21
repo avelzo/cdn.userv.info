@@ -8,11 +8,18 @@ export async function GET(request: NextRequest) {
 
     const mediaManager = DIContainer.getInstance().getMediaManagerUseCase();
     
-    // Assurer qu'il y a un dossier racine pour l'utilisateur
-    const rootFolder = await mediaManager.ensureUserRootFolder(userId);
-    
-    // Récupérer l'arborescence des dossiers
+    // Récupérer l'arborescence des dossiers directement
     const folders = await mediaManager.getFolderTree(userId);
+    
+    // Trouver le dossier racine dans la liste
+    const rootFolder = folders.find(f => f.isRoot);
+    
+    if (!rootFolder) {
+      return NextResponse.json({
+        success: false,
+        error: 'Aucun dossier racine trouvé pour cet utilisateur'
+      }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
