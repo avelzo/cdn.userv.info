@@ -48,21 +48,64 @@ export default function MediaManager() {
   };
 
   // Fonctions utilitaires pour construire les URLs complètes
-  const getThumbnailUrl = (fileUrl: string | undefined, fileName: string, size: 'small' | 'medium') => {
-    const baseUrl = getBaseUrl();
-    if (fileUrl) {
-      // Extraire le nom du fichier de l'URL existante
-      const fileNameFromUrl = fileUrl.split('/').pop() || fileName;
-      const fileNameWithoutExt = fileNameFromUrl.replace(/\.[^/.]+$/, '');
-      return `${baseUrl}/api/uploads/users/${TEST_USER_ID}/thumbs/${fileNameWithoutExt}-${size}.jpg`;
-    }
-    const fileNameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
-    return `${baseUrl}/api/uploads/users/${TEST_USER_ID}/thumbs/${fileNameWithoutExt}-${size}.jpg`;
+  const getThumbnailUrl = (url: string | undefined, fileName: string, size: string) => {
+    if (!url) return '/placeholder.jpg';
+    const fileId = url.split('/').pop()?.split('.')[0];
+    return `${window.location.origin}/api/uploads/users/${TEST_USER_ID}/thumbs/${fileId}-${size}.jpg`;
   };
 
-  const getFileUrl = (fileUrl: string | undefined, fileName: string) => {
-    const baseUrl = getBaseUrl();
-    return fileUrl || `${baseUrl}/api/uploads/users/${TEST_USER_ID}/files/${fileName}`;
+  const getFileUrl = (url: string | undefined, fileName: string) => {
+    if (!url) return '';
+    return `${window.location.origin}${url}`;
+  };
+
+  const copyToClipboard = async (file: FileItem) => {
+    try {
+      const url = getFileUrl(file.url || '', file.name);
+      await navigator.clipboard.writeText(url);
+      // Optionnel: afficher une notification de succès
+      alert('URL copiée dans le presse-papier !');
+    } catch (err) {
+      console.error('Erreur lors de la copie:', err);
+      // Fallback pour les navigateurs qui ne supportent pas l'API clipboard
+      const textArea = document.createElement('textarea');
+      textArea.value = getFileUrl(file.url || '', file.name);
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        alert('URL copiée dans le presse-papier !');
+      } catch (fallbackErr) {
+        console.error('Erreur lors de la copie fallback:', fallbackErr);
+        alert('Impossible de copier l\'URL');
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
+  const downloadFile = (file: FileItem) => {
+    try {
+      const url = getFileUrl(file.url || '', file.name);
+      
+      // Créer un élément <a> temporaire pour déclencher le téléchargement
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name; // Nom du fichier à télécharger
+      link.target = '_blank';
+      
+      // Ajouter temporairement l'élément au DOM
+      document.body.appendChild(link);
+      
+      // Déclencher le clic pour démarrer le téléchargement
+      link.click();
+      
+      // Nettoyer en supprimant l'élément
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Erreur lors du téléchargement:', err);
+      alert('Impossible de télécharger le fichier');
+    }
   };
 
   const handleDeleteFile = (file: FileItem) => {
@@ -518,24 +561,36 @@ export default function MediaManager() {
                     </div>
                   )}
 
-                  {selectedFile.url && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        URL
-                      </label>
-                      <p className="text-sm text-gray-900 dark:text-white break-all">
-                        {selectedFile.url}
-                      </p>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      URL
+                    </label>
+                    <div className="text-sm text-gray-900 dark:text-white break-all">
+                      <a 
+                        href={getFileUrl(selectedFile.url || '', selectedFile.name)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline cursor-pointer transition-colors duration-200"
+                        title="Cliquez pour ouvrir le fichier dans un nouvel onglet"
+                      >
+                        {getFileUrl(selectedFile.url || '', selectedFile.name)}
+                      </a>
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 {/* Actions */}
                 <div className="space-y-2">
-                  <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors duration-200">
+                  <button 
+                    onClick={() => downloadFile(selectedFile)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors duration-200"
+                  >
                     Télécharger
                   </button>
-                  <button className="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg transition-colors duration-200">
+                  <button 
+                    onClick={() => copyToClipboard(selectedFile)}
+                    className="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg transition-colors duration-200"
+                  >
                     Copier le lien
                   </button>
                   <button 
