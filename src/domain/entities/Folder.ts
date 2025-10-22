@@ -46,6 +46,11 @@ export class Folder {
     return !this.isRoot;
   }
 
+  public canBeRenamed(): boolean {
+    // Règles métier : un dossier racine ne peut pas être renommé
+    return !this.isRoot;
+  }
+
   public static createRoot(userId: string): Folder {
     return new Folder(
       '', // L'ID sera généré par le repository

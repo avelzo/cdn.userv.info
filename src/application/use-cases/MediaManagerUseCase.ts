@@ -60,6 +60,10 @@ export class MediaManagerUseCase {
     await this.folderService.deleteFolder(folderId, userId);
   }
 
+  async renameFolder(folderId: string, newName: string, userId: string): Promise<Folder> {
+    return await this.folderService.renameFolder(folderId, newName, userId);
+  }
+
   async getFileById(fileId: string): Promise<File | null> {
     return await this.fileService.getFileById(fileId);
   }

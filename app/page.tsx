@@ -25,10 +25,16 @@ export default function Home() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                Mon Application
+                CDN-USERV
               </h1>
             </div>
-            <nav>
+            <nav className="flex items-center gap-3">
+              <a
+                href="/manager"
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium"
+              >
+                Manager
+              </a>
               <button
                 onClick={handleLoginClick}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium"
@@ -46,7 +52,7 @@ export default function Home() {
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
             Bienvenue dans notre
-            <span className="text-blue-600 dark:text-blue-400"> Application</span>
+            <span className="text-blue-600 dark:text-blue-400"> Gestionnnaire de média</span>
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
             Découvrez une expérience unique avec notre plateforme innovante. 
@@ -89,7 +95,7 @@ export default function Home() {
 
         {/* Call to Action Buttons */}
         <div className="text-center">
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8">
+          {/* <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8">
             Commencez dès maintenant
           </h3>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -111,7 +117,7 @@ export default function Home() {
             >
               En Savoir Plus
             </button>
-          </div>
+          </div> */}
           
           {/* Lien vers le gestionnaire */}
           <div className="mt-12 text-center">
