@@ -678,8 +678,10 @@ export default function MediaManager() {
                           const target = e.currentTarget;
                           target.src = getFileUrl(file.url, file.name);
                           target.onerror = () => {
-                            const container = target.parentElement!;
-                            container.innerHTML = `<span class="text-3xl">${getFileIcon(file.mimeType)}</span>`;
+                            const container = target.parentElement;
+                            if (container) {
+                              container.innerHTML = `<span class="text-3xl">${getFileIcon(file.mimeType)}</span>`;
+                            }
                           };
                         }}
                       />
@@ -755,8 +757,10 @@ export default function MediaManager() {
                           const target = e.currentTarget;
                           target.src = getFileUrl(selectedFile.url, selectedFile.name);
                           target.onerror = () => {
-                            const container = target.parentElement!;
-                            container.innerHTML = `<span class="text-6xl">${getFileIcon(selectedFile.mimeType)}</span>`;
+                            const container = target.parentElement;
+                            if (container) {
+                              container.innerHTML = `<span class="text-6xl">${getFileIcon(selectedFile.mimeType)}</span>`;
+                            }
                           };
                         }}
                       />
