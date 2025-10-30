@@ -114,21 +114,6 @@ Accédez à `/manager` pour une interface complète de gestion des médias avec 
 - Aperçu et détails des fichiers
 - Actions de copie, téléchargement et suppression
 
-### Intégration API
-```javascript
-// Upload d'un fichier
-const formData = new FormData();
-formData.append('file', file);
-formData.append('folderId', folderId);
-formData.append('userId', userId);
-formData.append('isPublic', 'true');
-
-const response = await fetch('/api/files/upload', {
-  method: 'POST',
-  body: formData
-});
-```
-
 ## 🏗️ Architecture DDD
 
 Le projet suit les principes du Domain-Driven Design :
@@ -138,13 +123,6 @@ Le projet suit les principes du Domain-Driven Design :
 - **Infrastructure Layer** : Repositories Prisma et accès aux données
 
 Voir [docs/DDD-ARCHITECTURE.md](docs/DDD-ARCHITECTURE.md) pour plus de détails.
-
-## 🧪 Données de test
-
-Un utilisateur de test est disponible :
-- **Email** : test@userv.info
-- **Username** : testuser  
-- **ID** : 68f6914dfac6d73b4751e944
 
 ## 📝 Scripts disponibles
 
