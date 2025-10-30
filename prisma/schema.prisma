@@ -14,15 +14,17 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  email         String    @unique
-  username      String?
-  password      String
-  name          String?
-  image         String?
-  emailVerified DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  email            String    @unique
+  username         String?
+  password         String
+  name             String?
+  image            String?
+  emailVerified    DateTime?
+  resetToken       String?   // Token pour la réinitialisation du mot de passe
+  resetTokenExpiry DateTime? // Date d'expiration du token
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   // Relations
   folders  Folder[]

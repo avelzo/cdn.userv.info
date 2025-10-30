@@ -121,13 +121,23 @@ export default function SignIn() {
             </button>
           </div>
 
-          <div className="text-center">
-            <Link
-              href="/"
-              className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            >
-              {`← Retour à l'accueil`}
-            </Link>
+          <div className="text-center space-y-2">
+            <div>
+              <Link
+                href="/auth/forgot-password"
+                className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 hover:underline"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </div>
+            <div>
+              <Link
+                href="/"
+                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              >
+                {`← Retour à l'accueil`}
+              </Link>
+            </div>
           </div>
         </form>
       </div>
