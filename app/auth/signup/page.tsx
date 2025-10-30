@@ -55,7 +55,7 @@ export default function SignUp() {
       })
 
       const data = await response.json()
-
+      console.log({ data });
       if (response.ok) {
         router.push("/auth/signin?message=Compte créé avec succès, vous pouvez maintenant vous connecter")
       } else {

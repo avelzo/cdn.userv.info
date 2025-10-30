@@ -52,8 +52,30 @@ export async function POST(request: NextRequest) {
       { message: "Utilisateur créé avec succès", userId: user.id },
       { status: 201 }
     )
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erreur lors de la création de l'utilisateur:", error)
+    
+    // Gérer les erreurs spécifiques de Prisma
+    if (error.code === 'P2002') {
+      const target = error.meta?.target;
+      if (target?.includes('email')) {
+        return NextResponse.json(
+          { error: "Un utilisateur avec cet email existe déjà" },
+          { status: 400 }
+        )
+      }
+      if (target?.includes('username')) {
+        return NextResponse.json(
+          { error: "Ce nom d'utilisateur est déjà pris" },
+          { status: 400 }
+        )
+      }
+      return NextResponse.json(
+        { error: "Violation de contrainte d'unicité" },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
       { error: "Erreur interne du serveur" },
       { status: 500 }
