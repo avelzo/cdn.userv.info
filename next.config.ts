@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
     ],
     // Optimisation des images
     formats: ['image/webp', 'image/avif'],
+    // Types d'images autorisés (incluant ICO)
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    // Formats d'image supportés
+    unoptimized: false,
   },
 };
 

@@ -332,16 +332,25 @@ export default function MediaManager() {
   useEffect(() => {
     if (session?.user?.id) {
       loadFolders();
+      // Restaurer la sélection de dossier depuis localStorage
+      const savedFolderId = localStorage.getItem(`selectedFolder_${session.user.id}`);
+      if (savedFolderId) {
+        setSelectedFolder(savedFolderId);
+      }
     }
   }, [session]);
 
   useEffect(() => {
     if (selectedFolder && selectedFolder !== "" && selectedFolder !== "root") {
       loadFolderContents(selectedFolder);
+      // Sauvegarder la sélection dans localStorage
+      if (userId) {
+        localStorage.setItem(`selectedFolder_${userId}`, selectedFolder);
+      }
     } else {
       setFiles([]);
     }
-  }, [selectedFolder]);
+  }, [selectedFolder, userId]);
 
   const loadFolders = async () => {
     if (!userId) return;
@@ -360,10 +369,13 @@ export default function MediaManager() {
         setFolders(data.data.folders);
         console.log('Dossiers chargés:', data.data.folders.length);
         
-        // Sélectionner le dossier racine par défaut
-        const rootFolder = data.data.folders.find((f: FolderItem) => f.isRoot);
-        if (rootFolder) {
-          setSelectedFolder(rootFolder.id);
+        // Sélectionner le dossier racine par défaut seulement si aucun dossier n'est restauré
+        const savedFolderId = localStorage.getItem(`selectedFolder_${userId}`);
+        if (!savedFolderId) {
+          const rootFolder = data.data.folders.find((f: FolderItem) => f.isRoot);
+          if (rootFolder) {
+            setSelectedFolder(rootFolder.id);
+          }
         }
       } else {
         console.error('Erreur lors du chargement des dossiers:', data.error);
@@ -454,11 +466,14 @@ export default function MediaManager() {
 
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
+    event.stopPropagation();
     setIsDragOver(false);
     
     const uploadFiles = event.dataTransfer.files;
     if (uploadFiles && uploadFiles.length > 0) {
-      Array.from(uploadFiles).forEach(file => {
+      // Traiter tous les fichiers en parallèle pour éviter les problèmes de navigation
+      const fileArray = Array.from(uploadFiles);
+      fileArray.forEach(file => {
         uploadFile(file);
       });
     }
@@ -466,12 +481,24 @@ export default function MediaManager() {
 
   const handleDragOver = (event: React.DragEvent) => {
     event.preventDefault();
-    setIsDragOver(true);
+    event.stopPropagation();
+    // Éviter de redéclencher si déjà en cours
+    if (!isDragOver) {
+      setIsDragOver(true);
+    }
   };
 
   const handleDragLeave = (event: React.DragEvent) => {
     event.preventDefault();
-    setIsDragOver(false);
+    event.stopPropagation();
+    // Vérifier que nous quittons vraiment la zone de drop
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX;
+    const y = event.clientY;
+    
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      setIsDragOver(false);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -489,7 +516,7 @@ export default function MediaManager() {
 
   const getFileIcon = (mimeType?: string) => {
     if (!mimeType) return "📄";
-    if (mimeType.startsWith("image/")) return "🖼️";
+    if (mimeType.startsWith("image/") || mimeType === "image/x-icon" || mimeType === "image/vnd.microsoft.icon") return "🖼️";
     if (mimeType.startsWith("video/")) return "🎥";
     if (mimeType.startsWith("audio/")) return "🎵";
     if (mimeType.includes("pdf")) return "📋";
@@ -497,7 +524,15 @@ export default function MediaManager() {
   };
 
   const isImageFile = (mimeType?: string) => {
-    return mimeType?.startsWith('image/') || false;
+    return mimeType?.startsWith('image/') || 
+           mimeType === 'image/x-icon' || 
+           mimeType === 'image/vnd.microsoft.icon' || false;
+  };
+
+  const isIconFile = (mimeType?: string) => {
+    return mimeType === 'image/x-icon' || 
+           mimeType === 'image/vnd.microsoft.icon' || 
+           (mimeType && mimeType.includes('icon'));
   };
 
   const getCurrentFolderName = () => {
@@ -665,7 +700,13 @@ export default function MediaManager() {
                 onClick={() => setSelectedFile(file)}
               >
                 <div className="text-center">
-                  {isImageFile(file.mimeType) ? (
+                  {isIconFile(file.mimeType) ? (
+                    <div className="w-16 h-16 mx-auto mb-2 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
+                      <div className="text-4xl flex items-center justify-center">
+                        🎯
+                      </div>
+                    </div>
+                  ) : isImageFile(file.mimeType) ? (
                     <div className="w-16 h-16 mx-auto mb-2 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
                       <Image 
                         src={getThumbnailUrl(file.url, file.name || '', 'small')}
@@ -744,7 +785,13 @@ export default function MediaManager() {
               <div className="space-y-6">
                 {/* Aperçu */}
                 <div className="text-center">
-                  {isImageFile(selectedFile.mimeType) ? (
+                  {isIconFile(selectedFile.mimeType) ? (
+                    <div className="w-32 h-32 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
+                      <div className="text-8xl flex items-center justify-center">
+                        🎯
+                      </div>
+                    </div>
+                  ) : isImageFile(selectedFile.mimeType) ? (
                     <div className="w-32 h-32 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
                       <Image 
                         src={getThumbnailUrl(selectedFile.url, selectedFile.name || '', 'medium')}

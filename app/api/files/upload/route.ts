@@ -60,11 +60,28 @@ export async function POST(request: NextRequest) {
     const finalFilePath = path.join(userUploadsDir, uploadedFile.name);
     await writeFile(finalFilePath, buffer);
 
-    // Générer les miniatures si c'est une image
-    if (file.type.startsWith('image/')) {
+    // Générer les miniatures seulement pour les images classiques (pas les ICO)
+    const isIconType = file.type === 'image/x-icon' || 
+                      file.type === 'image/vnd.microsoft.icon' ||
+                      file.type.includes('icon');
+                      
+    const isImageType = file.type.startsWith('image/') && !isIconType;
+    
+    if (isImageType) {
       try {
         const sharp = (await import('sharp')).default;
-        const image = sharp(buffer);
+        
+        // Pour les fichiers ICO, Sharp peut avoir des difficultés, donc on utilise une approche plus robuste
+        let image;
+        try {
+          image = sharp(buffer);
+          // Tenter de récupérer les métadonnées pour vérifier la validité
+          await image.metadata();
+        } catch {
+          console.log('Fichier ICO détecté, traitement spécial...');
+          // Pour les ICO, essayer de convertir d'abord en PNG
+          image = sharp(buffer).png();
+        }
         
         // Créer le dossier des miniatures
         const thumbsDir = path.join(uploadsDir, 'users', userId, 'thumbs');
