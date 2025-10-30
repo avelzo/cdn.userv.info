@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import AuthHeader from "@/src/components/AuthHeader";
 
 interface FileItem {
   id: string;
@@ -26,6 +29,8 @@ interface FolderItem {
 }
 
 export default function MediaManager() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -48,26 +53,36 @@ export default function MediaManager() {
   const [renamingFolder, setRenamingFolder] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ID utilisateur de test - en production, cela viendrait de l'authentification
-  const TEST_USER_ID = "68f6914dfac6d73b4751e944";
+  // Rediriger si pas connecté
+  useEffect(() => {
+    if (status === "loading") return; // Still loading
+    if (!session) {
+      router.push("/auth/signin");
+      return;
+    }
+  }, [session, status, router]);
+
+  // ID utilisateur authentifié
+  const userId = session?.user?.id;
 
   // Fonction utilitaire pour obtenir l'URL de base
-  const getBaseUrl = () => {
-    if (typeof window !== 'undefined') {
-      return window.location.origin;
-    }
-    return 'http://localhost:3000';
-  };
+  // const getBaseUrl = () => {
+  //   if (typeof window !== 'undefined') {
+  //     return window.location.origin;
+  //   }
+  //   return 'http://localhost:3000';
+  // };
 
   // Fonctions utilitaires pour construire les URLs complètes
   const getThumbnailUrl = (url: string | undefined, fileName: string, size: string) => {
-    if (!url) return '/placeholder.jpg';
+    if (!url || !userId) return '/placeholder.jpg';
     const fileId = url.split('/').pop()?.split('.')[0];
-    return `${window.location.origin}/api/uploads/users/${TEST_USER_ID}/thumbs/${fileId}-${size}.jpg`;
+    return `${window.location.origin}/api/uploads/users/${userId}/thumbs/${fileId}-${size}.jpg`;
   };
 
   const getFileUrl = (url: string | undefined, fileName: string) => {
     if (!url) return '';
+    console.log({ fileName });
     return `${window.location.origin}${url}`;
   };
 
@@ -136,7 +151,7 @@ export default function MediaManager() {
         body: JSON.stringify({
           name: newFolderName.trim(),
           parentId: selectedFolder,
-          userId: TEST_USER_ID,
+          userId: userId,
         }),
       });
 
@@ -180,7 +195,7 @@ export default function MediaManager() {
     setDeleteFolderError(null);
     
     try {
-      const response = await fetch(`/api/folders/${folderToDelete.id}?userId=${TEST_USER_ID}`, {
+      const response = await fetch(`/api/folders/${folderToDelete.id}?userId=${userId}`, {
         method: 'DELETE',
       });
 
@@ -244,7 +259,7 @@ export default function MediaManager() {
         },
         body: JSON.stringify({
           name: renameFolderName.trim(),
-          userId: TEST_USER_ID,
+          userId: userId,
         }),
       });
 
@@ -315,8 +330,10 @@ export default function MediaManager() {
   };
 
   useEffect(() => {
-    loadFolders();
-  }, []);
+    if (session?.user?.id) {
+      loadFolders();
+    }
+  }, [session]);
 
   useEffect(() => {
     if (selectedFolder && selectedFolder !== "" && selectedFolder !== "root") {
@@ -327,11 +344,13 @@ export default function MediaManager() {
   }, [selectedFolder]);
 
   const loadFolders = async () => {
+    if (!userId) return;
+    
     try {
       setLoading(true);
-      console.log('Chargement des dossiers pour userId:', TEST_USER_ID);
+      console.log('Chargement des dossiers pour userId:', userId);
       
-      const response = await fetch(`/api/folders?userId=${TEST_USER_ID}`);
+      const response = await fetch(`/api/folders?userId=${userId}`);
       console.log('Status de la réponse:', response.status);
       
       const data = await response.json();
@@ -357,8 +376,10 @@ export default function MediaManager() {
   };
 
   const loadFolderContents = async (folderId: string) => {
+    if (!userId) return;
+    
     try {
-      const response = await fetch(`/api/files?folderId=${folderId}&userId=${TEST_USER_ID}`);
+      const response = await fetch(`/api/files?folderId=${folderId}&userId=${userId}`);
       const data = await response.json();
       
       if (data.success) {
@@ -381,13 +402,18 @@ export default function MediaManager() {
   };
 
   const uploadFile = async (file: File) => {
+    if (!userId) {
+      alert('Vous devez être connecté pour uploader des fichiers');
+      return;
+    }
+
     try {
       setUploading(true);
       
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folderId', selectedFolder);
-      formData.append('userId', TEST_USER_ID);
+      formData.append('userId', userId);
       formData.append('isPublic', 'false');
 
       const response = await fetch('/api/files/upload', {
@@ -504,33 +530,33 @@ export default function MediaManager() {
     );
   };
 
-  if (loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Chargement des dossiers...</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            {status === "loading" ? "Vérification de l'authentification..." : "Chargement des dossiers..."}
+          </p>
         </div>
       </div>
     );
   }
 
+  if (!session) {
+    return null; // Le middleware redirigera automatiquement
+  }
+
   return (
     <div className="h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+      <AuthHeader showManagerLink={false} />
+      
+      {/* Manager Header */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link 
-              href="/"
-              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
-              title="Retour à l'accueil"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </Link>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
               Gestionnaire de Médias
             </h1>
             <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
@@ -543,7 +569,7 @@ export default function MediaManager() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || selectedFolder === 'root' || selectedFolder === ''}
+              disabled={uploading || selectedFolder === 'root' || selectedFolder === '' || !userId}
               className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
             >
               {uploading ? (
@@ -564,7 +590,7 @@ export default function MediaManager() {
             </button>
           </div>
         </div>
-      </header>
+      </div>
 
       <div className="flex-1 flex">
         {/* Sidebar - Arborescence des dossiers */}
@@ -641,9 +667,11 @@ export default function MediaManager() {
                 <div className="text-center">
                   {isImageFile(file.mimeType) ? (
                     <div className="w-16 h-16 mx-auto mb-2 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
-                      <img 
+                      <Image 
                         src={getThumbnailUrl(file.url, file.name || '', 'small')}
-                        alt={file.name}
+                        alt={file.name || 'File thumbnail'}
+                        width={64}
+                        height={64}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           // Fallback vers l'image originale si la miniature n'existe pas
@@ -716,9 +744,11 @@ export default function MediaManager() {
                 <div className="text-center">
                   {isImageFile(selectedFile.mimeType) ? (
                     <div className="w-32 h-32 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
-                      <img 
+                      <Image 
                         src={getThumbnailUrl(selectedFile.url, selectedFile.name || '', 'medium')}
-                        alt={selectedFile.name}
+                        alt={selectedFile.name || 'File preview'}
+                        width={128}
+                        height={128}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           // Fallback vers l'image originale si la miniature n'existe pas
@@ -930,7 +960,7 @@ export default function MediaManager() {
                 </div>
                 {deleteFolderError.includes('n\'est pas vide') && (
                   <p className="text-red-700 dark:text-red-300 text-xs mt-2">
-                    Veuillez d'abord supprimer tous les fichiers et sous-dossiers contenus dans ce dossier.
+                    {`Veuillez d'abord supprimer tous les fichiers et sous-dossiers contenus dans ce dossier.`}
                   </p>
                 )}
               </div>
@@ -939,7 +969,7 @@ export default function MediaManager() {
                 Êtes-vous sûr de vouloir supprimer le dossier <strong>{folderToDelete.name}</strong> ?
                 <br />
                 <span className="text-sm text-gray-500 dark:text-gray-400 mt-2 block">
-                  Cette action est irréversible. Le dossier ne peut être supprimé que s'il est vide.
+                  {`Cette action est irréversible. Le dossier ne peut être supprimé que s'il est vide.`}
                 </span>
               </p>
             )}

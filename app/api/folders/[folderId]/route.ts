@@ -3,9 +3,10 @@ import { DIContainer } from '../../../../src/DIContainer';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { folderId: string } }
+  { params }: { params: Promise<{ folderId: string }> }
 ) {
   try {
+    const { folderId } = await params;
     const { name, userId } = await request.json();
 
     if (!name || !userId) {
@@ -24,7 +25,7 @@ export async function PUT(
 
     const mediaManager = DIContainer.getInstance().getMediaManagerUseCase();
     
-    const updatedFolder = await mediaManager.renameFolder(params.folderId, name.trim(), userId);
+    const updatedFolder = await mediaManager.renameFolder(folderId, name.trim(), userId);
 
     return NextResponse.json({
       success: true,
@@ -45,9 +46,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { folderId: string } }
+  { params }: { params: Promise<{ folderId: string }> }
 ) {
   try {
+    const { folderId } = await params;
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
@@ -61,7 +63,7 @@ export async function DELETE(
     const mediaManager = DIContainer.getInstance().getMediaManagerUseCase();
     
     // Vérifier si le dossier contient des fichiers ou des sous-dossiers
-    const { folders, files } = await mediaManager.getFolderContents(params.folderId, userId);
+    const { folders, files } = await mediaManager.getFolderContents(folderId, userId);
     
     if (folders.length > 0 || files.length > 0) {
       return NextResponse.json(
@@ -74,7 +76,7 @@ export async function DELETE(
       );
     }
 
-    await mediaManager.deleteFolder(params.folderId, userId);
+    await mediaManager.deleteFolder(folderId, userId);
 
     return NextResponse.json({
       success: true,

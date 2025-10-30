@@ -1,0 +1,31 @@
+<svg width="16" height="16" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#1E40AF" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main background -->
+  <circle cx="32" cy="32" r="30" fill="url(#bgGradient)" />
+  
+  <!-- Simplified network for small size -->
+  <g fill="white">
+    <!-- Central hub -->
+    <circle cx="32" cy="32" r="5" />
+    
+    <!-- Main nodes only -->
+    <circle cx="18" cy="18" r="3" opacity="0.9" />
+    <circle cx="46" cy="18" r="3" opacity="0.9" />
+    <circle cx="18" cy="46" r="3" opacity="0.9" />
+    <circle cx="46" cy="46" r="3" opacity="0.9" />
+  </g>
+  
+  <!-- Connection lines - simplified -->
+  <g stroke="white" stroke-width="2" opacity="0.7">
+    <line x1="32" y1="32" x2="18" y2="18" />
+    <line x1="32" y1="32" x2="46" y2="18" />
+    <line x1="32" y1="32" x2="18" y2="46" />
+    <line x1="32" y1="32" x2="46" y2="46" />
+  </g>
+</svg>
