@@ -1,4 +1,3 @@
-````markdown
 # CDN UserV - Media Manager
 
 A modern, high-performance CDN solution built with Next.js, TypeScript and Prisma, following Domain-Driven Design (DDD) principles.
@@ -158,5 +157,3 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 - [Prisma documentation](https://www.prisma.io/docs)
 - [MongoDB documentation](https://docs.mongodb.com/)
 - [Tailwind CSS documentation](https://tailwindcss.com/docs)
-
-````
