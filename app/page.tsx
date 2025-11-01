@@ -1,5 +1,3 @@
-"use client";
-
 import AuthHeader from "@/src/components/AuthHeader";
 import ManagerPreview from "@/src/components/ManagerPreview";
 

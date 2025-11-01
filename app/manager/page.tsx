@@ -60,25 +60,8 @@ export default function MediaManager() {
   const [renamingFolder, setRenamingFolder] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Rediriger si pas connecté
-  useEffect(() => {
-    if (status === "loading") return; // Still loading
-    if (!session) {
-      router.push("/auth/signin");
-      return;
-    }
-  }, [session, status, router]);
-
   // ID utilisateur authentifié
   const userId = session?.user?.id;
-
-  // Fonction utilitaire pour obtenir l'URL de base
-  // const getBaseUrl = () => {
-  //   if (typeof window !== 'undefined') {
-  //     return window.location.origin;
-  //   }
-  //   return 'http://localhost:3000';
-  // };
 
   // Fonctions utilitaires pour construire les URLs complètes
   const getThumbnailUrl = (url: string | undefined, fileName: string, size: string) => {
@@ -345,8 +328,10 @@ export default function MediaManager() {
     setFileToDelete(null);
   };
 
+  const foldersInitRef = useRef<string | null>(null);
   useEffect(() => {
-    if (session?.user?.id) {
+    if (session?.user?.id && foldersInitRef.current !== session.user.id) {
+      foldersInitRef.current = session.user.id;
       loadFolders();
       // Restaurer la sélection de dossier depuis localStorage
       const savedFolderId = localStorage.getItem(`selectedFolder_${session.user.id}`);
@@ -584,14 +569,12 @@ export default function MediaManager() {
     );
   };
 
-  if (status === "loading" || loading) {
+  if (loading) {
     return (
       <div className="h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">
-            {status === "loading" ? "Vérification de l'authentification..." : "Chargement des dossiers..."}
-          </p>
+          <p className="text-gray-600 dark:text-gray-400">Chargement des dossiers...</p>
         </div>
       </div>
     );
