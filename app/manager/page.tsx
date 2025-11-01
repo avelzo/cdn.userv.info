@@ -14,6 +14,13 @@ interface FileItem {
   lastModified?: Date;
   mimeType?: string;
   url?: string;
+  metadata?: {
+    width?: number;
+    height?: number;
+    duration?: number;
+    bitrate?: number;
+    format?: string;
+  } | null;
 }
 
 interface FolderItem {
@@ -32,7 +39,7 @@ export default function MediaManager() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [selectedFolder, setSelectedFolder] = useState<string>("");
-  const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -86,52 +93,55 @@ export default function MediaManager() {
     return `${window.location.origin}${url}`;
   };
 
-  const copyToClipboard = async (file: FileItem) => {
+  const copyToClipboard = async (files: FileItem[]) => {
     try {
-      const url = getFileUrl(file.url || '', file.name);
-      await navigator.clipboard.writeText(url);
+      const urls = files.map(file => getFileUrl(file.url || '', file.name)).join('\n');
+      await navigator.clipboard.writeText(urls);
       // Optionnel: afficher une notification de succès
-      alert('URL copiée dans le presse-papier !');
+      alert(`${files.length} URL${files.length > 1 ? 's' : ''} copiée${files.length > 1 ? 's' : ''} dans le presse-papier !`);
     } catch (err) {
       console.error('Erreur lors de la copie:', err);
       // Fallback pour les navigateurs qui ne supportent pas l'API clipboard
+      const urls = files.map(file => getFileUrl(file.url || '', file.name)).join('\n');
       const textArea = document.createElement('textarea');
-      textArea.value = getFileUrl(file.url || '', file.name);
+      textArea.value = urls;
       document.body.appendChild(textArea);
       textArea.focus();
       textArea.select();
       try {
         document.execCommand('copy');
-        alert('URL copiée dans le presse-papier !');
+        alert(`${files.length} URL${files.length > 1 ? 's' : ''} copiée${files.length > 1 ? 's' : ''} dans le presse-papier !`);
       } catch (fallbackErr) {
         console.error('Erreur lors de la copie fallback:', fallbackErr);
-        alert('Impossible de copier l\'URL');
+        alert('Impossible de copier les URLs');
       }
       document.body.removeChild(textArea);
     }
   };
 
-  const downloadFile = (file: FileItem) => {
+  const downloadFiles = (files: FileItem[]) => {
     try {
-      const url = getFileUrl(file.url || '', file.name);
-      
-      // Créer un élément <a> temporaire pour déclencher le téléchargement
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = file.name; // Nom du fichier à télécharger
-      link.target = '_blank';
-      
-      // Ajouter temporairement l'élément au DOM
-      document.body.appendChild(link);
-      
-      // Déclencher le clic pour démarrer le téléchargement
-      link.click();
-      
-      // Nettoyer en supprimant l'élément
-      document.body.removeChild(link);
+      files.forEach(file => {
+        const url = getFileUrl(file.url || '', file.name);
+        
+        // Créer un élément <a> temporaire pour déclencher le téléchargement
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name; // Nom du fichier à télécharger
+        link.target = '_blank';
+        
+        // Ajouter temporairement l'élément au DOM
+        document.body.appendChild(link);
+        
+        // Déclencher le clic pour démarrer le téléchargement
+        link.click();
+        
+        // Nettoyer en supprimant l'élément
+        document.body.removeChild(link);
+      });
     } catch (err) {
       console.error('Erreur lors du téléchargement:', err);
-      alert('Impossible de télécharger le fichier');
+      alert('Impossible de télécharger les fichiers');
     }
   };
 
@@ -295,6 +305,14 @@ export default function MediaManager() {
     setShowDeleteConfirm(true);
   };
 
+  const handleDeleteSelectedFiles = async () => {
+    if (selectedFiles.length === 0) return;
+    // Pour la suppression multiple, on prend le premier fichier pour l'instant
+    // On pourrait améliorer avec une modal spéciale pour la suppression multiple
+    setFileToDelete(selectedFiles[0]);
+    setShowDeleteConfirm(true);
+  };
+
   const confirmDeleteFile = async () => {
     if (!fileToDelete) return;
 
@@ -308,10 +326,8 @@ export default function MediaManager() {
       if (data.success) {
         // Retirer le fichier de la liste
         setFiles(files.filter(f => f.id !== fileToDelete.id));
-        // Fermer le panneau de détails si c'est le fichier sélectionné
-        if (selectedFile?.id === fileToDelete.id) {
-          setSelectedFile(null);
-        }
+        // Retirer le fichier des fichiers sélectionnés
+        setSelectedFiles(selectedFiles.filter(f => f.id !== fileToDelete.id));
       } else {
         alert('Erreur lors de la suppression: ' + data.error);
       }
@@ -350,6 +366,8 @@ export default function MediaManager() {
     } else {
       setFiles([]);
     }
+    // Réinitialiser la sélection de fichiers lors du changement de dossier
+    setSelectedFiles([]);
   }, [selectedFolder, userId]);
 
   const loadFolders = async () => {
@@ -403,7 +421,8 @@ export default function MediaManager() {
           size: file.size,
           lastModified: new Date(file.createdAt),
           mimeType: file.mimeType,
-          url: file.url
+          url: file.url,
+          metadata: file.metadata || null,
         })));
       } else {
         console.error('Erreur lors du chargement des fichiers:', data.error);
@@ -620,7 +639,11 @@ export default function MediaManager() {
               )}
             </button>
 
-            <button className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg transition-colors duration-200">
+            <button 
+              onClick={() => router.push('/profile')}
+              className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg transition-colors duration-200"
+              title="Mon profil"
+            >
               ⚙️
             </button>
           </div>
@@ -695,9 +718,29 @@ export default function MediaManager() {
               <div
                 key={file.id}
                 className={`bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md transition-all duration-200 ${
-                  selectedFile?.id === file.id ? "ring-2 ring-blue-500" : ""
+                  selectedFiles.some(f => f.id === file.id) ? "ring-2 ring-blue-500" : ""
                 }`}
-                onClick={() => setSelectedFile(file)}
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    // Multi-sélection avec Ctrl/Cmd
+                    if (selectedFiles.some(f => f.id === file.id)) {
+                      setSelectedFiles(selectedFiles.filter(f => f.id !== file.id));
+                    } else {
+                      setSelectedFiles([...selectedFiles, file]);
+                    }
+                  } else if (e.shiftKey && selectedFiles.length > 0) {
+                    // Sélection par plage avec Shift
+                    const lastSelectedIndex = files.findIndex(f => f.id === selectedFiles[selectedFiles.length - 1].id);
+                    const currentIndex = files.findIndex(f => f.id === file.id);
+                    const start = Math.min(lastSelectedIndex, currentIndex);
+                    const end = Math.max(lastSelectedIndex, currentIndex);
+                    const rangeFiles = files.slice(start, end + 1);
+                    setSelectedFiles(rangeFiles);
+                  } else {
+                    // Sélection simple
+                    setSelectedFiles([file]);
+                  }
+                }}
               >
                 <div className="text-center">
                   {isIconFile(file.mimeType) ? (
@@ -767,15 +810,15 @@ export default function MediaManager() {
         </div>
 
         {/* Right Panel - Détails du fichier */}
-        {selectedFile && (
+        {selectedFiles.length > 0 && (
           <div className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Détails du fichier
+                  {selectedFiles.length === 1 ? 'Détails du fichier' : `${selectedFiles.length} fichiers sélectionnés`}
                 </h2>
                 <button
-                  onClick={() => setSelectedFile(null)}
+                  onClick={() => setSelectedFiles([])}
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 >
                   ✕
@@ -783,114 +826,177 @@ export default function MediaManager() {
               </div>
 
               <div className="space-y-6">
-                {/* Aperçu */}
-                <div className="text-center">
-                  {isIconFile(selectedFile.mimeType) ? (
-                    <div className="w-32 h-32 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
-                      <div className="text-8xl flex items-center justify-center">
-                        🎯
+                {selectedFiles.length === 1 ? (
+                  // Affichage pour un seul fichier
+                  <>
+                    {/* Aperçu */}
+                    <div className="text-center">
+                      {isIconFile(selectedFiles[0].mimeType) ? (
+                        <div className="w-32 h-32 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
+                          <div className="text-8xl flex items-center justify-center">
+                            🎯
+                          </div>
+                        </div>
+                      ) : isImageFile(selectedFiles[0].mimeType) ? (
+                        <div className="w-32 h-32 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
+                          <Image 
+                            src={getThumbnailUrl(selectedFiles[0].url, selectedFiles[0].name || '', 'medium')}
+                            alt={selectedFiles[0].name || 'File preview'}
+                            width={128}
+                            height={128}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback vers l'image originale si la miniature n'existe pas
+                              const target = e.currentTarget;
+                              target.src = getFileUrl(selectedFiles[0].url, selectedFiles[0].name);
+                              target.onerror = () => {
+                                const container = target.parentElement;
+                                if (container) {
+                                  container.innerHTML = `<span class="text-6xl">${getFileIcon(selectedFiles[0].mimeType)}</span>`;
+                                }
+                              };
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="text-6xl mb-3">{getFileIcon(selectedFiles[0].mimeType)}</div>
+                      )}
+                      <h3 className="font-medium text-gray-900 dark:text-white break-words">
+                        {selectedFiles[0].name}
+                      </h3>
+                    </div>
+
+                    {/* Informations */}
+                    <div className="space-y-3">
+                      {/* Dimensions pour images */}
+                      {isImageFile(selectedFiles[0].mimeType) && selectedFiles[0].metadata?.width && selectedFiles[0].metadata?.height && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                            Dimensions
+                          </label>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {selectedFiles[0].metadata.width} × {selectedFiles[0].metadata.height} px
+                          </p>
+                        </div>
+                      )}
+                      <div>
+                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Type
+                        </label>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {selectedFiles[0].mimeType || "Inconnu"}
+                        </p>
+                      </div>
+                      
+                      {selectedFiles[0].size && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                            Taille
+                          </label>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {formatFileSize(selectedFiles[0].size)}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {selectedFiles[0].lastModified && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                            Dernière modification
+                          </label>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {selectedFiles[0].lastModified.toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          URL
+                        </label>
+                        <div className="text-sm text-gray-900 dark:text-white break-all">
+                          <a 
+                            href={getFileUrl(selectedFiles[0].url || '', selectedFiles[0].name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline cursor-pointer transition-colors duration-200"
+                            title="Cliquez pour ouvrir le fichier dans un nouvel onglet"
+                          >
+                            {getFileUrl(selectedFiles[0].url || '', selectedFiles[0].name)}
+                          </a>
+                        </div>
                       </div>
                     </div>
-                  ) : isImageFile(selectedFile.mimeType) ? (
-                    <div className="w-32 h-32 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
-                      <Image 
-                        src={getThumbnailUrl(selectedFile.url, selectedFile.name || '', 'medium')}
-                        alt={selectedFile.name || 'File preview'}
-                        width={128}
-                        height={128}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          // Fallback vers l'image originale si la miniature n'existe pas
-                          const target = e.currentTarget;
-                          target.src = getFileUrl(selectedFile.url, selectedFile.name);
-                          target.onerror = () => {
-                            const container = target.parentElement;
-                            if (container) {
-                              container.innerHTML = `<span class="text-6xl">${getFileIcon(selectedFile.mimeType)}</span>`;
-                            }
-                          };
-                        }}
-                      />
+                  </>
+                ) : (
+                  // Affichage pour plusieurs fichiers
+                  <>
+                    <div className="text-center">
+                      <div className="text-6xl mb-3">📑</div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        {selectedFiles.length} fichiers sélectionnés
+                      </h3>
                     </div>
-                  ) : (
-                    <div className="text-6xl mb-3">{getFileIcon(selectedFile.mimeType)}</div>
-                  )}
-                  <h3 className="font-medium text-gray-900 dark:text-white break-words">
-                    {selectedFile.name}
-                  </h3>
-                </div>
 
-                {/* Informations */}
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                      Type
-                    </label>
-                    <p className="text-sm text-gray-900 dark:text-white">
-                      {selectedFile.mimeType || "Inconnu"}
-                    </p>
-                  </div>
-                  
-                  {selectedFile.size && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Taille
-                      </label>
-                      <p className="text-sm text-gray-900 dark:text-white">
-                        {formatFileSize(selectedFile.size)}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {selectedFile.lastModified && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Dernière modification
-                      </label>
-                      <p className="text-sm text-gray-900 dark:text-white">
-                        {selectedFile.lastModified.toLocaleDateString()}
-                      </p>
-                    </div>
-                  )}
+                    {/* Informations groupées */}
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Taille totale
+                        </label>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {formatFileSize(selectedFiles.reduce((acc, file) => acc + (file.size || 0), 0))}
+                        </p>
+                      </div>
 
-                  <div>
-                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                      URL
-                    </label>
-                    <div className="text-sm text-gray-900 dark:text-white break-all">
-                      <a 
-                        href={getFileUrl(selectedFile.url || '', selectedFile.name)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline cursor-pointer transition-colors duration-200"
-                        title="Cliquez pour ouvrir le fichier dans un nouvel onglet"
-                      >
-                        {getFileUrl(selectedFile.url || '', selectedFile.name)}
-                      </a>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Fichiers
+                        </label>
+                        <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                          {selectedFiles.map((file) => (
+                            <div key={file.id} className="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                              <span>{getFileIcon(file.mimeType)}</span>
+                              <span className="flex-1 truncate" title={file.name}>{file.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                )}
 
                 {/* Actions */}
                 <div className="space-y-2">
                   <button 
-                    onClick={() => downloadFile(selectedFile)}
+                    onClick={() => downloadFiles(selectedFiles)}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors duration-200"
                   >
-                    Télécharger
+                    {selectedFiles.length === 1 ? 'Télécharger' : `Télécharger (${selectedFiles.length})`}
                   </button>
                   <button 
-                    onClick={() => copyToClipboard(selectedFile)}
+                    onClick={() => copyToClipboard(selectedFiles)}
                     className="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg transition-colors duration-200"
                   >
-                    Copier le lien
+                    {selectedFiles.length === 1 ? 'Copier le lien' : `Copier les liens (${selectedFiles.length})`}
                   </button>
-                  <button 
-                    onClick={() => handleDeleteFile(selectedFile)}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors duration-200"
-                  >
-                    Supprimer
-                  </button>
+                  {selectedFiles.length === 1 ? (
+                    <button 
+                      onClick={() => handleDeleteFile(selectedFiles[0])}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors duration-200"
+                    >
+                      Supprimer
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={handleDeleteSelectedFiles}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors duration-200"
+                      disabled
+                      title="Suppression multiple en cours de développement"
+                    >
+                      Supprimer ({selectedFiles.length})
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

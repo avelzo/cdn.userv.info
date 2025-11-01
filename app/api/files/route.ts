@@ -44,7 +44,14 @@ export async function GET(request: NextRequest) {
           isPublic: file.isPublic,
           createdAt: file.createdAt,
           updatedAt: file.updatedAt,
-          folderId: file.folderId
+          folderId: file.folderId,
+          metadata: file.metadata ? {
+            width: file.metadata.width,
+            height: file.metadata.height,
+            duration: file.metadata.duration,
+            bitrate: file.metadata.bitrate,
+            format: file.metadata.format,
+          } : null,
         }))
       }
     });

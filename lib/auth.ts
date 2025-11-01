@@ -1,4 +1,4 @@
-import { PrismaAdapter } from "@auth/prisma-adapter"
+import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/src/infrastructure/database/prisma"
@@ -40,8 +40,10 @@ export const authOptions: NextAuthOptions = {
         return {
           id: user.id,
           email: user.email,
-          name: user.name,
-          image: user.image,
+          name: user.name || undefined,
+          username: user.username || undefined,
+          image: user.image || undefined,
+          createdAt: user.createdAt,
         }
       }
     })
@@ -53,15 +55,26 @@ export const authOptions: NextAuthOptions = {
     signIn: "/auth/signin",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.sub = user.id
+        token.username = user.username
+        token.createdAt = user.createdAt
       }
+      
+      // Gérer la mise à jour de la session
+      if (trigger === "update" && session) {
+        token.name = session.user.name
+        token.username = session.user.username
+      }
+      
       return token
     },
     async session({ session, token }) {
       if (token.sub) {
         session.user.id = token.sub
+        session.user.username = token.username as string | undefined
+        session.user.createdAt = token.createdAt as string | undefined
       }
       return session
     },
