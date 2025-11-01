@@ -36,7 +36,7 @@ interface FolderItem {
 }
 
 export default function MediaManager() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const router = useRouter();
   const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
