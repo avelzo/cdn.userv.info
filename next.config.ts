@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     // Autoriser les images depuis localhost pour le développement
-    domains: ['localhost'],
+    domains: ['localhost', 'cdn.userv.info'],
     // Utiliser remotePatterns pour plus de contrôle (supporte tous les ports)
     remotePatterns: [
       {
