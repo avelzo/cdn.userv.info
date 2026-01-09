@@ -9,6 +9,15 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASSWORD,
   },
+  connectionTimeout: 10000, // 10 secondes
+  greetingTimeout: 10000, // 10 secondes
+  socketTimeout: 10000, // 10 secondes
+  tls: {
+    rejectUnauthorized: false, // Accepter les certificats auto-signés
+    minVersion: 'TLSv1.2',
+  },
+  debug: true, // Active les logs de débogage
+  logger: true, // Active le logger
 });
 
 export interface EmailOptions {
@@ -19,8 +28,21 @@ export interface EmailOptions {
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
-    console.log('Right before sendemail');
+  console.log('Right before sendemail');
+  console.log('SMTP Configuration:', {
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    secure: process.env.SMTP_SECURE,
+    user: process.env.SMTP_USER,
+    from: process.env.SMTP_FROM,
+  });
+  
   try {
+    // Vérifier la connexion SMTP avant d'envoyer
+    console.log('Vérification de la connexion SMTP...');
+    await transporter.verify();
+    console.log('Connexion SMTP vérifiée avec succès');
+    
     const info = await transporter.sendMail({
       from: process.env.SMTP_FROM || 'noreply@cdn.userv.info',
       to: options.to,
@@ -33,6 +55,11 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Erreur envoi email:', error);
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     return false;
   }
 }
