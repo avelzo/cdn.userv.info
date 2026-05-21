@@ -1,28 +1,21 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 function ResetPasswordForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [token, setToken] = useState('');
-
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    const tokenParam = searchParams.get('token');
-    if (tokenParam) {
-      setToken(tokenParam);
-    } else {
-      setError('Token manquant. Veuillez demander un nouveau lien de réinitialisation.');
-    }
-  }, [searchParams]);
+  const token = searchParams.get('token') || '';
+  const tokenError = token
+    ? ''
+    : 'Token manquant. Veuillez demander un nouveau lien de réinitialisation.';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +62,7 @@ function ResetPasswordForm() {
     }
   };
 
-  if (!token && !error) {
+  if (!token && !tokenError && !error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -98,14 +91,14 @@ function ResetPasswordForm() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="bg-white py-8 px-6 shadow-lg rounded-lg">
             <div className="space-y-4">
-              {error && (
+              {(error || tokenError) && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
                   <div className="flex">
                     <div className="flex-shrink-0">
                       <span className="text-red-400">⚠️</span>
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm">{error}</p>
+                      <p className="text-sm">{error || tokenError}</p>
                     </div>
                   </div>
                 </div>

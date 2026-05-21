@@ -137,7 +137,6 @@ export class PrismaFileRepository implements FileRepository {
     return files.map(this.toDomain);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private toDomain(prismaFile: any): File {
     let metadata: FileMetadata | undefined;
     if (prismaFile.metadata) {

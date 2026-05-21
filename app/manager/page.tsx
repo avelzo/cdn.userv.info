@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -329,51 +328,49 @@ export default function MediaManager() {
   };
 
   const foldersInitRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (session?.user?.id && foldersInitRef.current !== session.user.id) {
-      foldersInitRef.current = session.user.id;
-      loadFolders();
-      // Restaurer la sélection de dossier depuis localStorage
-      const savedFolderId = localStorage.getItem(`selectedFolder_${session.user.id}`);
-      if (savedFolderId) {
-        setSelectedFolder(savedFolderId);
-      }
-    }
-  }, [session]);
 
-  useEffect(() => {
-    if (selectedFolder && selectedFolder !== "" && selectedFolder !== "root") {
-      loadFolderContents(selectedFolder);
-      // Sauvegarder la sélection dans localStorage
-      if (userId) {
-        localStorage.setItem(`selectedFolder_${userId}`, selectedFolder);
-      }
-    } else {
-      setFiles([]);
-    }
-    // Réinitialiser la sélection de fichiers lors du changement de dossier
-    setSelectedFiles([]);
-  }, [selectedFolder, userId]);
-
-  const loadFolders = async () => {
+  const loadFolderContents = useCallback(async (folderId: string) => {
     if (!userId) return;
-    
+
+    try {
+      const response = await fetch(`/api/files?folderId=${folderId}&userId=${userId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setFiles(
+          data.data.files.map((file: any) => ({
+            id: file.id,
+            name: file.originalName,
+            type: 'file' as const,
+            size: file.size,
+            lastModified: new Date(file.createdAt),
+            mimeType: file.mimeType,
+            url: file.url,
+            metadata: file.metadata || null,
+          }))
+        );
+      } else {
+        console.error('Erreur lors du chargement des fichiers:', data.error);
+      }
+    } catch (error) {
+      console.error('Erreur réseau lors du chargement des fichiers:', error);
+    }
+  }, [userId]);
+
+  const loadFolders = useCallback(async () => {
+    if (!userId) return;
+
     try {
       setLoading(true);
-      console.log('Chargement des dossiers pour userId:', userId);
-      
+
       const response = await fetch(`/api/folders?userId=${userId}`);
-      console.log('Status de la réponse:', response.status);
-      
       const data = await response.json();
-      console.log('Données reçues:', data);
-      
+
       if (data.success && data.data.folders) {
         setFolders(data.data.folders);
-        console.log('Dossiers chargés:', data.data.folders.length);
-        
-        // Sélectionner le dossier racine par défaut seulement si aucun dossier n'est restauré
+
         const savedFolderId = localStorage.getItem(`selectedFolder_${userId}`);
+
         if (!savedFolderId) {
           const rootFolder = data.data.folders.find((f: FolderItem) => f.isRoot);
           if (rootFolder) {
@@ -388,34 +385,41 @@ export default function MediaManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
-  const loadFolderContents = async (folderId: string) => {
-    if (!userId) return;
-    
-    try {
-      const response = await fetch(`/api/files?folderId=${folderId}&userId=${userId}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setFiles(data.data.files.map((file: any) => ({
-          id: file.id,
-          name: file.originalName,
-          type: 'file' as const,
-          size: file.size,
-          lastModified: new Date(file.createdAt),
-          mimeType: file.mimeType,
-          url: file.url,
-          metadata: file.metadata || null,
-        })));
+  useEffect(() => {
+    void Promise.resolve().then(async () => {
+      if (selectedFolder && selectedFolder !== "" && selectedFolder !== "root") {
+        await loadFolderContents(selectedFolder);
+
+        if (userId) {
+          localStorage.setItem(`selectedFolder_${userId}`, selectedFolder);
+        }
       } else {
-        console.error('Erreur lors du chargement des fichiers:', data.error);
+        setFiles([]);
       }
-    } catch (error) {
-      console.error('Erreur réseau lors du chargement des fichiers:', error);
+
+      setSelectedFiles([]);
+    });
+  }, [selectedFolder, userId, loadFolderContents]);
+
+  useEffect(() => {
+    if (!session?.user?.id || foldersInitRef.current === session.user.id) {
+      return;
     }
-  };
+
+    foldersInitRef.current = session.user.id;
+
+    void Promise.resolve().then(async () => {
+      await loadFolders();
+
+      const savedFolderId = localStorage.getItem(`selectedFolder_${session.user.id}`);
+
+      if (savedFolderId) {
+        setSelectedFolder(savedFolderId);
+      }
+    });
+  }, [session?.user?.id, loadFolders]);
 
   const uploadFile = async (file: File) => {
     if (!userId) {

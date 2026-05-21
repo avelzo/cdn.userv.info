@@ -2,18 +2,17 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    // Autoriser les images depuis localhost pour le développement
-    domains: ['localhost', 'cdn.userv.info'],
-    // Utiliser remotePatterns pour plus de contrôle (supporte tous les ports)
+    unoptimized: true,
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: 'localhost',
+        protocol: 'https',
+        hostname: 'cdn.userv.info',
         pathname: '/api/uploads/**',
       },
       {
-        protocol: 'https',
+        protocol: 'http',
         hostname: 'localhost',
+        port: '3000',
         pathname: '/api/uploads/**',
       }
     ],
@@ -23,7 +22,6 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     // Formats d'image supportés
-    unoptimized: false,
   },
 };
 

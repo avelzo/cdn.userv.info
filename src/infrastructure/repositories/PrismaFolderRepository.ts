@@ -94,7 +94,6 @@ export class PrismaFolderRepository implements FolderRepository {
     return !!folder;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private toDomain(prismaFolder: any): Folder {
     return new Folder(
       prismaFolder.id,

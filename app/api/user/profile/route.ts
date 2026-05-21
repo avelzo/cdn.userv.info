@@ -5,9 +5,12 @@ import { prisma } from '@/src/infrastructure/database/prisma';
 import bcrypt from 'bcryptjs';
 
 export async function PUT(request: NextRequest) {
+
+  console.log('PUT Profile');
+
   try {
     const session = await getServerSession(authOptions);
-
+    console.log({session});
     if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, error: 'Non authentifié' },
@@ -16,8 +19,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+    console.log({body})
     const { name, username, currentPassword, newPassword } = body;
-
+    
+    console.log({name})
+    console.log({username})
     // Préparer les données de mise à jour
     const updateData: {
       name?: string;

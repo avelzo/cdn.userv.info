@@ -8,39 +8,33 @@ import AuthHeader from "@/src/components/AuthHeader";
 export default function ProfilePage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     name: "",
     username: "",
     email: "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-  });
-
-  // Rediriger si pas connecté
+  }));
   useEffect(() => {
     if (status === "loading") return;
     if (!session) {
       router.push("/auth/signin");
-      return;
+      return
     }
+    setFormData ({
+      name: session.user.name || "",
+      username: session.user.username || "",
+      email: session.user.email || "",
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
   }, [session, status, router]);
 
-  // Charger les données utilisateur
-  useEffect(() => {
-    if (session?.user) {
-      setFormData(prev => ({
-        ...prev,
-        name: session.user.name || "",
-        username: session.user.username || "",
-        email: session.user.email || "",
-      }));
-    }
-  }, [session]);
+  
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -92,7 +86,7 @@ export default function ProfilePage() {
         updateData.currentPassword = formData.currentPassword;
         updateData.newPassword = formData.newPassword;
       }
-
+      console.log({updateData});
       const response = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: {
@@ -133,22 +127,13 @@ export default function ProfilePage() {
       setSaving(false);
     }
   };
-
-//   if (status === "loading" || loading) {
-//     return (
-//       <div className="h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-//         <div className="text-center">
-//           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-//           <p className="text-gray-600 dark:text-gray-400">Chargement...</p>
-//         </div>
-//       </div>
-//     );
-//   }
-
   if (!session) {
     return null;
   }
-
+  const memberSince = session!.user.createdAt
+    ? new Date(session.user.createdAt).toLocaleDateString('fr-FR')
+    : '-';
+  console.log({memberSince})
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       <AuthHeader />
@@ -305,7 +290,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex justify-between">
                     <span>Membre depuis:</span>
-                    <span>{new Date(session.user.createdAt || Date.now()).toLocaleDateString('fr-FR')}</span>
+                    <span>{memberSince}</span>
                   </div>
                 </div>
               </div>
