@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import { GoogleAnalytics } from '@next/third-parties/google'
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/src/components/AuthProvider";
 import "./globals.css";
+
+const isProduction = (process.env.APP_ENV === 'production');
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,6 +58,7 @@ export default function RootLayout({
           {children}
         </AuthProvider>
       </body>
+      {isProduction?<GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA4_ID??''} />:null}
     </html>
   );
 }
