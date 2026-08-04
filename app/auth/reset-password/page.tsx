@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { authClient } from '@/lib/auth-client';
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -24,8 +25,8 @@ function ResetPasswordForm() {
     setMessage('');
 
     // Validation côté client
-    if (password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères');
+    if (password.length < 12 || password.length > 128) {
+      setError('Le mot de passe doit contenir entre 12 et 128 caractères');
       setIsLoading(false);
       return;
     }
@@ -37,25 +38,21 @@ function ResetPasswordForm() {
     }
 
     try {
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password })
+      const { error: resetError } = await authClient.resetPassword({
+        token,
+        newPassword: password,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage(data.message);
+      if (!resetError) {
+        setMessage('Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.');
         // Rediriger vers la page de connexion après 3 secondes
         setTimeout(() => {
           router.push('/auth/signin');
         }, 3000);
       } else {
-        setError(data.error || 'Une erreur est survenue');
+        setError(resetError.message || 'Une erreur est survenue');
       }
     } catch (error) {
-      console.error('Erreur:', error);
       setError('Erreur de connexion. Veuillez réessayer.');
     } finally {
       setIsLoading(false);
@@ -127,11 +124,12 @@ function ResetPasswordForm() {
                   name="password"
                   type="password"
                   required
-                  minLength={6}
+                  minLength={12}
+                  maxLength={128}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Minimum 6 caractères"
+                  placeholder="Minimum 12 caractères"
                 />
               </div>
 
@@ -144,7 +142,8 @@ function ResetPasswordForm() {
                   name="confirmPassword"
                   type="password"
                   required
-                  minLength={6}
+                  minLength={12}
+                  maxLength={128}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
@@ -155,7 +154,7 @@ function ResetPasswordForm() {
               <div className="bg-blue-50 p-3 rounded-md">
                 <p className="text-xs text-blue-800">
                   <strong>Conseils pour un mot de passe sécurisé :</strong><br/>
-                  • Au moins 6 caractères<br/>
+                  • Au moins 12 caractères<br/>
                   • Mélange de lettres, chiffres et symboles<br/>
                   • Évitez les mots courants
                 </p>

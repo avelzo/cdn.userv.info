@@ -8,6 +8,8 @@ Cette application suit les principes du Domain-Driven Design (DDD) avec une sép
 
 ```
 src/
+├── components/             # Composants React partagés
+├── lib/                    # Services techniques et sécurité
 ├── domain/                 # Couche Domaine (règles métier)
 │   ├── entities/          # Entités métier
 │   │   ├── User.ts
@@ -31,6 +33,11 @@ src/
         └── PrismaFileRepository.ts
 ```
 
+Le routeur Next.js reste dans `app/` à la racine. Cette organisation est prise en
+charge par l'App Router : `app/` décrit les routes, tandis que `src/` contient le code
+applicatif partagé et les couches DDD. Le dossier `src/` n'est donc pas un dossier vide
+ou généré à supprimer.
+
 ### 🎯 Couches DDD
 
 #### 🏛️ Domaine (Domain Layer)
@@ -53,10 +60,10 @@ src/
 DATABASE_HOST=127.0.0.1
 DATABASE_NAME=cdn
 DATABASE_PORT=27017
-DATABASE_USER="userMongo001"
-DATABASE_USERPASS="thisIsTheBestPassWD2024"
-DATABASE_ADMIN="mongoAdminUser" 
-DATABASE_ADMINPASS="mongoAdminPass2024"
+DATABASE_USER="<utilisateur>"
+DATABASE_USERPASS="<secret>"
+DATABASE_ADMIN="<administrateur>"
+DATABASE_ADMINPASS="<secret>"
 ```
 
 #### Modèles Prisma

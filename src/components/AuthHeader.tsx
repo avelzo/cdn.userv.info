@@ -1,23 +1,26 @@
 "use client"
 
 import { useState } from "react"
-import { useSession, signOut } from "next-auth/react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import Logo from "./Logo"
+import { useAuth } from "@/src/components/AuthProvider"
 
 interface AuthHeaderProps {
   showManagerLink?: boolean
 }
 
 export default function AuthHeader({ showManagerLink = true }: AuthHeaderProps) {
-  const { data: session, status } = useSession()
+  const auth = useAuth()
+  const { user: session, loading } = auth
   const [mobileOpen, setMobileOpen] = useState(false)
-
-  const handleSignOut = () => {
-    signOut({ callbackUrl: "/" })
+  const router = useRouter()
+  const handleSignOut = async () => {
+    await auth.signout()
+    router.push("/")
   }
 
-  const userLabel = session?.user?.name || session?.user?.email || "Utilisateur"
+  const userLabel = session?.name || session?.email || "Utilisateur"
   const initials = (() => {
     if (!userLabel) return "?"
     const parts = userLabel.replace(/@.*/, "").trim().split(/\s+/)
@@ -38,7 +41,7 @@ export default function AuthHeader({ showManagerLink = true }: AuthHeaderProps) 
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-2">
-            {status === "loading" ? (
+            {loading ? (
               <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-9 w-24 rounded-lg" />
             ) : session ? (
               <>
@@ -56,7 +59,7 @@ export default function AuthHeader({ showManagerLink = true }: AuthHeaderProps) 
                   className="group inline-flex items-center gap-3 px-2 py-1 transition-colors duration-200"
                   title="Mon profil"
                 >
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 text-white text-xs font-semibold">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-indigo-500 to-blue-600 text-white text-xs font-semibold">
                     {initials}
                   </span>
                   <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 font-medium tracking-tight">
@@ -78,12 +81,6 @@ export default function AuthHeader({ showManagerLink = true }: AuthHeaderProps) 
                   className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium shadow-sm"
                 >
                   Connexion
-                </Link>
-                <Link
-                  href="/auth/signup"
-                  className="inline-flex items-center px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-200 font-medium"
-                >
-                  {`S'inscrire`}
                 </Link>
               </>
             )}
@@ -115,7 +112,7 @@ export default function AuthHeader({ showManagerLink = true }: AuthHeaderProps) 
       {/* Mobile menu panel */}
       <div className={`md:hidden ${mobileOpen ? 'block' : 'hidden'} border-t border-gray-200 dark:border-gray-700`}> 
         <div className="px-4 py-3 space-y-3">
-          {status === "loading" ? (
+          {loading ? (
             <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-28 rounded"></div>
           ) : session ? (
             <>
@@ -134,7 +131,7 @@ export default function AuthHeader({ showManagerLink = true }: AuthHeaderProps) 
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-3 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
               >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 text-white text-xs font-semibold">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-indigo-500 to-blue-600 text-white text-xs font-semibold">
                   {initials}
                 </span>
                 <span className="text-sm text-gray-700 dark:text-gray-300 font-medium tracking-tight">{userLabel}</span>
@@ -155,13 +152,6 @@ export default function AuthHeader({ showManagerLink = true }: AuthHeaderProps) 
                 className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium"
               >
                 Connexion
-              </Link>
-              <Link
-                href="/auth/signup"
-                onClick={() => setMobileOpen(false)}
-                className="block w-full text-center px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-200 font-medium"
-              >
-                {`S'inscrire`}
               </Link>
             </>
           )}

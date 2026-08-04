@@ -11,13 +11,13 @@
 
 ### ✅ Pages créées :
 - `/auth/signin` - Page de connexion
-- `/auth/signup` - Page d'inscription
+- `/auth/signup` - Fermée (404)
 - Header intelligent avec état d'authentification
 
 ## 🚀 Comment tester
 
 ### 1. **Créer un compte**
-   - Aller sur : http://localhost:3000/auth/signup
+   - L'inscription publique est désactivée.
    - Remplir le formulaire (nom optionnel, email, mot de passe)
    - Cliquer "Créer mon compte"
 
@@ -47,10 +47,10 @@
 
 ```
 /auth/signin          → Page de connexion
-/auth/signup          → Page d'inscription
+/auth/signup          → 404 (inscription fermée)
 /manager              → Gestionnaire (protégé)
-/api/auth/*           → Endpoints NextAuth.js
-/api/auth/register    → Inscription
+/api/auth/*           → Endpoints Better Auth
+/api/auth/register    → 404 (inscription fermée)
 /api/files/*          → APIs fichiers (protégées)
 /api/folders/*        → APIs dossiers (protégées)
 ```

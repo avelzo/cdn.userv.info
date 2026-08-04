@@ -46,4 +46,3 @@ logs
 # IDE
 .vscode/
 .idea/
-package-lock.json

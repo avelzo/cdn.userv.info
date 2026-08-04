@@ -7,32 +7,37 @@
     "build": "next build --turbopack",
     "start": "next start -p 3010",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types tests/security.test.mjs",
+    "auth:inventory": "node scripts/migrate-better-auth.mjs",
+    "auth:test-migration": "node scripts/test-better-auth-migration.mjs",
+    "media:publish-existing": "node scripts/publish-existing-files.mjs"
   },
   "dependencies": {
-    "@next-auth/prisma-adapter": "^1.0.7",
-    "@next/third-parties": "^16.2.9",
+    "@better-auth/prisma-adapter": "^1.6.25",
+    "@next/third-parties": "^16.3.0",
     "@prisma/client": "^6.19.3",
     "@types/bcryptjs": "^2.4.6",
     "@types/nodemailer": "^8.0.0",
     "@types/sharp": "^0.31.1",
     "bcryptjs": "^3.0.3",
-    "next": "^16.2.6",
-    "next-auth": "^4.24.14",
-    "nodemailer": "^7.0.13",
+    "better-auth": "^1.6.25",
+    "next": "^16.3.0",
+    "nodemailer": "^9.0.4",
     "prisma": "^6.19.3",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "sharp": "^0.35.2"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.2",
-    "@types/node": "26.0.1",
-    "@types/react": "^19.2.15",
-    "@types/react-dom": "^19.2.3",
-    "eslint": "10.6.0",
-    "eslint-config-next": "^16.2.6",
-    "tailwindcss": "4.3.2 ",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "eslint": "9.39.1",
+    "eslint-config-next": "^16.3.0",
+    "tailwindcss": "4.3.3",
     "typescript": "^6.0.3"
   }
 }

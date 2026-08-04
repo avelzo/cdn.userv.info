@@ -47,8 +47,8 @@ cp .env.example .env.local
 Configure the environment variables in `.env.local`:
 ```env
 DATABASE_URL="mongodb://username:password@localhost:27017/cdn"
-NEXTAUTH_SECRET="your-secret-key"
-NEXTAUTH_URL="http://localhost:3000"
+BETTER_AUTH_URL="http://localhost:3000"
+BETTER_AUTH_SECRET="une-valeur-aleatoire-d-au-moins-32-caracteres"
 ```
 
 4. **Database setup**

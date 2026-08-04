@@ -14,23 +14,26 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  email            String    @unique
-  username         String?
-  password         String
-  name             String?
-  image            String?
-  emailVerified    DateTime?
-  resetToken       String?   // Token pour la réinitialisation du mot de passe
-  resetTokenExpiry DateTime? // Date d'expiration du token
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  email             String    @unique
+  username          String?
+  password          String
+  name              String?
+  image             String?
+  emailVerified     DateTime?
+  authEmailVerified Boolean   @default(false)
+  resetToken        String? // Token pour la réinitialisation du mot de passe
+  resetTokenExpiry  DateTime? // Date d'expiration du token
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relations
-  folders  Folder[]
-  files    File[]
-  accounts Account[]
-  sessions Session[]
+  folders            Folder[]
+  files              File[]
+  accounts           Account[]
+  sessions           Session[]
+  betterAuthAccounts BetterAuthAccount[]
+  betterAuthSessions BetterAuthSession[]
 
   @@map("users")
 }
@@ -75,22 +78,68 @@ model VerificationToken {
   @@map("verificationtokens")
 }
 
+model BetterAuthSession {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("better_auth_sessions")
+}
+
+model BetterAuthAccount {
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  accountId             String
+  providerId            String
+  userId                String    @db.ObjectId
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@map("better_auth_accounts")
+}
+
+model BetterAuthVerification {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+  @@map("better_auth_verifications")
+}
+
 model Folder {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  slug        String
-  path        String
-  parentId    String?  @db.ObjectId
-  isRoot      Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  userId      String   @db.ObjectId
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  slug      String
+  path      String
+  parentId  String?  @db.ObjectId
+  isRoot    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String   @db.ObjectId
 
   // Relations
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent       Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  children     Folder[] @relation("FolderHierarchy")
-  files        File[]
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  children Folder[] @relation("FolderHierarchy")
+  files    File[]
 
   @@unique([userId, path])
   @@map("folders")
@@ -124,14 +173,14 @@ model File {
 }
 
 model FileMetadata {
-  id       String @id @default(auto()) @map("_id") @db.ObjectId
-  fileId   String @unique @db.ObjectId
+  id       String  @id @default(auto()) @map("_id") @db.ObjectId
+  fileId   String  @unique @db.ObjectId
   width    Int?
   height   Int?
-  duration Int?   // for videos/audio in seconds
-  bitrate  Int?   // for videos/audio
+  duration Int? // for videos/audio in seconds
+  bitrate  Int? // for videos/audio
   format   String?
-  
+
   // Relations
   file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
 

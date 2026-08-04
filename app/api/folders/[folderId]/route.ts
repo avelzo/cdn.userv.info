@@ -1,95 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { DIContainer } from '../../../../src/DIContainer';
+import { DIContainer } from '@/src/DIContainer';
+import { prisma } from '@/src/infrastructure/database/prisma';
+import { consumeRateLimit, isMongoObjectId, rateLimitResponse, requireAuthenticatedUser } from '@/src/lib/security';
+
+async function ownedFolder(folderId: string, userId: string) {
+  if (!isMongoObjectId(folderId)) return null;
+  return prisma.folder.findFirst({ where: { id: folderId, userId }, select: { id: true } });
+}
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ folderId: string }> }
+  { params }: { params: Promise<{ folderId: string }> },
 ) {
+  const auth = await requireAuthenticatedUser(request);
+  if (auth.response) return auth.response;
+  const { folderId } = await params;
+  if (!await ownedFolder(folderId, auth.user.id)) {
+    return NextResponse.json({ success: false, error: 'Folder not found' }, { status: 404 });
+  }
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body.name !== 'string' || !body.name.trim()
+    || body.name.trim().length > 80 || /[\0/\\]/.test(body.name)) {
+    return NextResponse.json({ success: false, error: 'Invalid folder name' }, { status: 400 });
+  }
   try {
-    const { folderId } = await params;
-    const { name, userId } = await request.json();
-
-    if (!name || !userId) {
-      return NextResponse.json(
-        { success: false, error: 'Name and userId are required' },
-        { status: 400 }
-      );
-    }
-
-    if (!name.trim()) {
-      return NextResponse.json(
-        { success: false, error: 'Le nom du dossier ne peut pas être vide' },
-        { status: 400 }
-      );
-    }
-
-    const mediaManager = DIContainer.getInstance().getMediaManagerUseCase();
-    
-    const updatedFolder = await mediaManager.renameFolder(folderId, name.trim(), userId);
-
-    return NextResponse.json({
-      success: true,
-      data: updatedFolder,
-      message: 'Dossier renommé avec succès'
-    });
+    const folder = await DIContainer.getInstance().getMediaManagerUseCase()
+      .renameFolder(folderId, body.name.trim(), auth.user.id);
+    return NextResponse.json({ success: true, data: folder });
   } catch (error) {
-    console.error('Error renaming folder:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      },
-      { status: 500 }
+      { success: false, error: error instanceof Error ? error.message : 'Unable to rename folder' },
+      { status: 400 },
     );
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ folderId: string }> }
+  { params }: { params: Promise<{ folderId: string }> },
 ) {
+  const auth = await requireAuthenticatedUser(request);
+  if (auth.response) return auth.response;
+  const limit = consumeRateLimit(`folder-delete:${auth.user.id}`, 30, 60 * 60_000);
+  if (!limit.allowed) return rateLimitResponse(limit);
+  const { folderId } = await params;
+  if (!await ownedFolder(folderId, auth.user.id)) {
+    return NextResponse.json({ success: false, error: 'Folder not found' }, { status: 404 });
+  }
+
+  const [folderCount, fileCount] = await Promise.all([
+    prisma.folder.count({ where: { parentId: folderId, userId: auth.user.id } }),
+    prisma.file.count({ where: { folderId, userId: auth.user.id } }),
+  ]);
+  if (folderCount || fileCount) {
+    return NextResponse.json({ success: false, error: 'Folder is not empty' }, { status: 409 });
+  }
   try {
-    const { folderId } = await params;
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'UserId is required' },
-        { status: 400 }
-      );
-    }
-
-    const mediaManager = DIContainer.getInstance().getMediaManagerUseCase();
-    
-    // Vérifier si le dossier contient des fichiers ou des sous-dossiers
-    const { folders, files } = await mediaManager.getFolderContents(folderId, userId);
-    
-    if (folders.length > 0 || files.length > 0) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Le dossier n\'est pas vide. Il contient des fichiers ou des sous-dossiers.',
-          isEmpty: false
-        },
-        { status: 400 }
-      );
-    }
-
-    await mediaManager.deleteFolder(folderId, userId);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Dossier supprimé avec succès'
-    });
+    await DIContainer.getInstance().getMediaManagerUseCase().deleteFolder(folderId, auth.user.id);
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting folder:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      },
-      { status: 500 }
+      { success: false, error: error instanceof Error ? error.message : 'Unable to delete folder' },
+      { status: 400 },
     );
   }
 }

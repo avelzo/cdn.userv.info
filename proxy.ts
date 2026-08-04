@@ -1,19 +1,18 @@
-import { withAuth } from "next-auth/middleware"
+import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/lib/auth"
 
-export default withAuth(
-  function middleware(req) {
-    // Le middleware s'exécute ici pour les routes protégées
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token
-    },
-    pages: {
-      signIn: "/auth/signin",
-    },
+export async function proxy(request: NextRequest) {
+  const session = await auth.api.getSession({ headers: request.headers })
+
+  if (!session) {
+    const signInUrl = new URL("/auth/signin", request.url)
+    signInUrl.searchParams.set("callbackUrl", request.nextUrl.pathname)
+    return NextResponse.redirect(signInUrl)
   }
-)
+
+  return NextResponse.next()
+}
 
 export const config = {
-  matcher: ["/manager/:path*", "/api/files/:path*", "/api/folders/:path*"]
+  matcher: ["/manager/:path*", "/profile/:path*"],
 }

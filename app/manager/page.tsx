@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/src/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import AuthHeader from "@/src/components/AuthHeader";
@@ -13,6 +13,7 @@ interface FileItem {
   lastModified?: Date;
   mimeType?: string;
   url?: string;
+  isPublic: boolean;
   metadata?: {
     width?: number;
     height?: number;
@@ -29,13 +30,14 @@ interface FolderItem {
   path: string;
   parentId?: string;
   isRoot: boolean;
-  userId: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export default function MediaManager() {
-  const { data: session } = useSession();
+  const auth = useAuth();
+  const session = auth.user;
+  const authLoading = auth.loading;
   const router = useRouter();
   const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
@@ -57,10 +59,12 @@ export default function MediaManager() {
   const [folderToRename, setFolderToRename] = useState<FolderItem | null>(null);
   const [renameFolderName, setRenameFolderName] = useState('');
   const [renamingFolder, setRenamingFolder] = useState(false);
+  const [visibilityUpdating, setVisibilityUpdating] = useState(false);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ID utilisateur authentifié
-  const userId = session?.user?.id;
+  const userId = session?.id;
 
   // Fonctions utilitaires pour construire les URLs complètes
   const getThumbnailUrl = (url: string | undefined, fileName: string, size: string) => {
@@ -143,7 +147,6 @@ export default function MediaManager() {
         body: JSON.stringify({
           name: newFolderName.trim(),
           parentId: selectedFolder,
-          userId: userId,
         }),
       });
 
@@ -187,7 +190,7 @@ export default function MediaManager() {
     setDeleteFolderError(null);
     
     try {
-      const response = await fetch(`/api/folders/${folderToDelete.id}?userId=${userId}`, {
+      const response = await fetch(`/api/folders/${folderToDelete.id}`, {
         method: 'DELETE',
       });
 
@@ -251,7 +254,6 @@ export default function MediaManager() {
         },
         body: JSON.stringify({
           name: renameFolderName.trim(),
-          userId: userId,
         }),
       });
 
@@ -327,13 +329,45 @@ export default function MediaManager() {
     setFileToDelete(null);
   };
 
+  const updateSelectedVisibility = async (isPublic: boolean) => {
+    if (selectedFiles.length === 0 || visibilityUpdating) return;
+    const fileIds = selectedFiles.map((file) => file.id);
+    setVisibilityUpdating(true);
+    setVisibilityError(null);
+
+    try {
+      const response = await fetch('/api/files', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileIds, isPublic }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Impossible de modifier la visibilité');
+      }
+
+      const updatedIds = new Set<string>(data.data.fileIds);
+      const applyVisibility = (file: FileItem) => updatedIds.has(file.id)
+        ? { ...file, isPublic: data.data.isPublic }
+        : file;
+      setFiles((current) => current.map(applyVisibility));
+      setSelectedFiles((current) => current.map(applyVisibility));
+    } catch (error) {
+      setVisibilityError(
+        error instanceof Error ? error.message : 'Impossible de modifier la visibilité',
+      );
+    } finally {
+      setVisibilityUpdating(false);
+    }
+  };
+
   const foldersInitRef = useRef<string | null>(null);
 
   const loadFolderContents = useCallback(async (folderId: string) => {
     if (!userId) return;
 
     try {
-      const response = await fetch(`/api/files?folderId=${folderId}&userId=${userId}`);
+      const response = await fetch(`/api/files?${new URLSearchParams({ folderId })}`);
       const data = await response.json();
 
       if (data.success) {
@@ -346,6 +380,7 @@ export default function MediaManager() {
             lastModified: new Date(file.createdAt),
             mimeType: file.mimeType,
             url: file.url,
+            isPublic: Boolean(file.isPublic),
             metadata: file.metadata || null,
           }))
         );
@@ -363,7 +398,7 @@ export default function MediaManager() {
     try {
       setLoading(true);
 
-      const response = await fetch(`/api/folders?userId=${userId}`);
+      const response = await fetch('/api/folders');
       const data = await response.json();
 
       if (data.success && data.data.folders) {
@@ -404,22 +439,22 @@ export default function MediaManager() {
   }, [selectedFolder, userId, loadFolderContents]);
 
   useEffect(() => {
-    if (!session?.user?.id || foldersInitRef.current === session.user.id) {
+    if (!session?.id || foldersInitRef.current === session.id) {
       return;
     }
 
-    foldersInitRef.current = session.user.id;
+    foldersInitRef.current = session.id;
 
     void Promise.resolve().then(async () => {
       await loadFolders();
 
-      const savedFolderId = localStorage.getItem(`selectedFolder_${session.user.id}`);
+      const savedFolderId = localStorage.getItem(`selectedFolder_${session.id}`);
 
       if (savedFolderId) {
         setSelectedFolder(savedFolderId);
       }
     });
-  }, [session?.user?.id, loadFolders]);
+  }, [session?.id, loadFolders]);
 
   const uploadFile = async (file: File) => {
     if (!userId) {
@@ -433,8 +468,7 @@ export default function MediaManager() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folderId', selectedFolder);
-      formData.append('userId', userId);
-      formData.append('isPublic', 'false');
+      formData.append('isPublic', 'true');
 
       const response = await fetch('/api/files/upload', {
         method: 'POST',
@@ -700,11 +734,16 @@ export default function MediaManager() {
             </div>
           )}
 
+          {files.length > 0 && (
+            <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+              Ctrl/Cmd + clic pour sélectionner plusieurs fichiers, Shift + clic pour une plage.
+            </p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {files.map((file) => (
               <div
                 key={file.id}
-                className={`bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                className={`relative bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md transition-all duration-200 ${
                   selectedFiles.some(f => f.id === file.id) ? "ring-2 ring-blue-500" : ""
                 }`}
                 onClick={(e) => {
@@ -729,6 +768,13 @@ export default function MediaManager() {
                   }
                 }}
               >
+                <span className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  file.isPublic
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                }`}>
+                  {file.isPublic ? 'Public' : 'Privé'}
+                </span>
                 <div className="text-center">
                   {isIconFile(file.mimeType) ? (
                     <div className="w-16 h-16 mx-auto mb-2 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
@@ -848,7 +894,7 @@ export default function MediaManager() {
                       ) : (
                         <div className="text-6xl mb-3">{getFileIcon(selectedFiles[0].mimeType)}</div>
                       )}
-                      <h3 className="font-medium text-gray-900 dark:text-white break-words">
+                      <h3 className="font-medium text-gray-900 dark:text-white wrap-break-words">
                         {selectedFiles[0].name}
                       </h3>
                     </div>
@@ -952,6 +998,45 @@ export default function MediaManager() {
                     </div>
                   </>
                 )}
+
+                {/* Visibilité, disponible pour une sélection simple ou multiple */}
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Visibilité
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {selectedFiles.every((file) => file.isPublic)
+                        ? 'Public'
+                        : selectedFiles.every((file) => !file.isPublic)
+                          ? 'Privé'
+                          : 'Mixte'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateSelectedVisibility(true)}
+                      disabled={visibilityUpdating || selectedFiles.every((file) => file.isPublic)}
+                      className="rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {visibilityUpdating ? 'Mise à jour…' : 'Rendre public'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateSelectedVisibility(false)}
+                      disabled={visibilityUpdating || selectedFiles.every((file) => !file.isPublic)}
+                      className="rounded-md bg-gray-700 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-600 dark:hover:bg-gray-500"
+                    >
+                      {visibilityUpdating ? 'Mise à jour…' : 'Rendre privé'}
+                    </button>
+                  </div>
+                  {visibilityError && (
+                    <p className="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">
+                      {visibilityError}
+                    </p>
+                  )}
+                </div>
 
                 {/* Actions */}
                 <div className="space-y-2">

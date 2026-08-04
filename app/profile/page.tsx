@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/src/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import AuthHeader from "@/src/components/AuthHeader";
 
 export default function ProfilePage() {
-  const { data: session, status, update } = useSession();
+  const auth = useAuth();
+  const session = auth.user;
+  const status = auth.loading ? 'loading' : 'authenticated';
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -24,14 +26,17 @@ export default function ProfilePage() {
       router.push("/auth/signin");
       return
     }
-    setFormData ({
-      name: session.user.name || "",
-      username: session.user.username || "",
-      email: session.user.email || "",
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
+    const timeout = window.setTimeout(() => {
+      setFormData({
+        name: session.name || "",
+        username: session.username || "",
+        email: session.email || "",
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    }, 0);
+    return () => window.clearTimeout(timeout);
   }, [session, status, router]);
 
   
@@ -55,13 +60,13 @@ export default function ProfilePage() {
         setSaving(false);
         return;
       }
-      if (formData.newPassword !== formData.confirmPassword) {
-        setMessage({ type: 'error', text: 'Les nouveaux mots de passe ne correspondent pas' });
+      if (formData.newPassword.length < 12 || formData.newPassword.length > 128) {
+        setMessage({ type: 'error', text: 'Le nouveau mot de passe doit contenir au moins 12 caractères' });
         setSaving(false);
         return;
       }
-      if (formData.newPassword && formData.newPassword.length < 6) {
-        setMessage({ type: 'error', text: 'Le nouveau mot de passe doit contenir au moins 6 caractères' });
+      if (formData.newPassword !== formData.confirmPassword) {
+        setMessage({ type: 'error', text: 'Les mots de passe ne correspondent pas' });
         setSaving(false);
         return;
       }
@@ -76,17 +81,16 @@ export default function ProfilePage() {
       } = {};
 
       // Inclure seulement les champs modifiés
-      if (formData.name !== session?.user?.name) {
+      if (formData.name !== session?.name) {
         updateData.name = formData.name;
       }
-      if (formData.username !== session?.user?.username) {
+      if (formData.username !== session?.username) {
         updateData.username = formData.username;
       }
       if (formData.newPassword) {
         updateData.currentPassword = formData.currentPassword;
         updateData.newPassword = formData.newPassword;
       }
-      console.log({updateData});
       const response = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: {
@@ -100,15 +104,8 @@ export default function ProfilePage() {
       if (data.success) {
         setMessage({ type: 'success', text: 'Profil mis à jour avec succès' });
         
-        // Mettre à jour la session
-        await update({
-          ...session,
-          user: {
-            ...session?.user,
-            name: formData.name,
-            username: formData.username,
-          }
-        });
+        // Mettre à jour la session cache via refresh
+        await auth.refresh();
 
         // Réinitialiser les champs de mot de passe
         setFormData(prev => ({
@@ -130,10 +127,9 @@ export default function ProfilePage() {
   if (!session) {
     return null;
   }
-  const memberSince = session!.user.createdAt
-    ? new Date(session.user.createdAt).toLocaleDateString('fr-FR')
+  const memberSince = session!.createdAt
+    ? new Date(session.createdAt).toLocaleDateString('fr-FR')
     : '-';
-  console.log({memberSince})
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       <AuthHeader />
@@ -142,7 +138,7 @@ export default function ProfilePage() {
         <div className="max-w-2xl mx-auto">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8">
+            <div className="bg-linear-to-r from-blue-600 to-indigo-600 px-6 py-8">
               <h1 className="text-2xl font-bold text-white">Mon Profil</h1>
               <p className="text-blue-100 mt-1">Gérez vos informations personnelles</p>
             </div>
@@ -251,6 +247,8 @@ export default function ProfilePage() {
                       name="newPassword"
                       value={formData.newPassword}
                       onChange={handleChange}
+                      minLength={12}
+                      maxLength={128}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="••••••••"
                     />
@@ -266,6 +264,8 @@ export default function ProfilePage() {
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleChange}
+                      minLength={12}
+                      maxLength={128}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="••••••••"
                     />
@@ -286,7 +286,7 @@ export default function ProfilePage() {
                 <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                   <div className="flex justify-between">
                     <span>ID utilisateur:</span>
-                    <span className="font-mono text-xs">{session.user.id}</span>
+                    <span className="font-mono text-xs">{session.id}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Membre depuis:</span>

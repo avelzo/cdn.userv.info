@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { authClient } from '@/lib/auth-client';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -16,22 +17,18 @@ export default function ForgotPasswordPage() {
     setMessage('');
 
     try {
-      const response = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+      const { error: requestError } = await authClient.requestPasswordReset({
+        email: email.trim().toLowerCase(),
+        redirectTo: '/auth/reset-password',
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage(data.message);
+      if (!requestError) {
+        setMessage('Si cet email existe dans notre base, vous recevrez un lien de réinitialisation.');
         setEmail(''); // Vider le champ email
       } else {
-        setError(data.error || 'Une erreur est survenue');
+        setError(requestError.message || 'Une erreur est survenue');
       }
     } catch (error) {
-      console.error('Erreur:', error);
       setError('Erreur de connexion. Veuillez réessayer.');
     } finally {
       setIsLoading(false);
@@ -129,12 +126,6 @@ export default function ForgotPasswordPage() {
               >
                 <span className="mr-1">←</span>
                 Retour à la connexion
-              </Link>
-            </div>
-            <div className="text-gray-500 text-sm">
-              Pas encore de compte ?{' '}
-              <Link href="/auth/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                S&apos;inscrire
               </Link>
             </div>
           </div>

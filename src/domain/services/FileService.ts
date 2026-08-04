@@ -104,8 +104,13 @@ export class FileService {
       new Date()
     );
 
-    // Mettre à jour le fichier avec les informations finales
-    return await this.fileRepository.update(finalFile);
+    // Compenser la création si la finalisation de l'enregistrement échoue.
+    try {
+      return await this.fileRepository.update(finalFile);
+    } catch (error) {
+      await this.fileRepository.delete(savedFile.id).catch(() => undefined);
+      throw error;
+    }
   }
 
   async getFilesByFolder(folderId: string, userId: string): Promise<File[]> {

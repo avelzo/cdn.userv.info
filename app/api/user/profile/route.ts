@@ -1,34 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/src/infrastructure/database/prisma';
-import bcrypt from 'bcryptjs';
+import { requireAuthenticatedUser } from '@/src/lib/security';
+import { auth as betterAuth } from '@/lib/auth';
 
 export async function PUT(request: NextRequest) {
 
-  console.log('PUT Profile');
-
   try {
-    const session = await getServerSession(authOptions);
-    console.log({session});
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'Non authentifié' },
-        { status: 401 }
-      );
-    }
+    const authentication = await requireAuthenticatedUser(request);
+    if (authentication.response) return authentication.response;
 
     const body = await request.json();
-    console.log({body})
     const { name, username, currentPassword, newPassword } = body;
-    
-    console.log({name})
-    console.log({username})
     // Préparer les données de mise à jour
     const updateData: {
       name?: string;
       username?: string;
-      password?: string;
       updatedAt: Date;
     } = {
       updatedAt: new Date(),
@@ -70,9 +56,9 @@ export async function PUT(request: NextRequest) {
       // Vérifier si le username est déjà pris par un autre utilisateur
       const existingUser = await prisma.user.findFirst({
         where: {
-          username: username.trim(),
-          id: { not: session.user.id },
-        },
+            username: username.trim(),
+            id: { not: authentication.user.id },
+          },
       });
 
       if (existingUser) {
@@ -94,43 +80,33 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      if (newPassword.length < 6) {
+      if (typeof newPassword !== 'string' || newPassword.length < 12 || newPassword.length > 128) {
         return NextResponse.json(
-          { success: false, error: 'Le nouveau mot de passe doit contenir au moins 6 caractères' },
+          { success: false, error: 'Le nouveau mot de passe doit contenir entre 12 et 128 caractères' },
           { status: 400 }
         );
       }
 
-      // Récupérer l'utilisateur avec son mot de passe actuel
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { password: true },
-      });
-
-      if (!user) {
-        return NextResponse.json(
-          { success: false, error: 'Utilisateur non trouvé' },
-          { status: 404 }
-        );
-      }
-
-      // Vérifier le mot de passe actuel
-      const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
-      if (!isPasswordValid) {
+      try {
+        await betterAuth.api.changePassword({
+          headers: request.headers,
+          body: {
+            currentPassword,
+            newPassword,
+            revokeOtherSessions: true,
+          },
+        });
+      } catch {
         return NextResponse.json(
           { success: false, error: 'Mot de passe actuel incorrect' },
           { status: 400 }
         );
       }
-
-      // Hasher le nouveau mot de passe
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      updateData.password = hashedPassword;
     }
 
     // Mettre à jour l'utilisateur
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: authentication.user.id },
       data: updateData,
       select: {
         id: true,
@@ -160,17 +136,11 @@ export async function PUT(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'Non authentifié' },
-        { status: 401 }
-      );
-    }
+    const authentication = await requireAuthenticatedUser(request);
+    if (authentication.response) return authentication.response;
 
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: authentication.user.id },
       select: {
         id: true,
         email: true,

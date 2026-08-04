@@ -13,11 +13,13 @@ const transporter = nodemailer.createTransport({
   greetingTimeout: 10000, // 10 secondes
   socketTimeout: 10000, // 10 secondes
   tls: {
-    rejectUnauthorized: false, // Accepter les certificats auto-signés
+    rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false',
     minVersion: 'TLSv1.2',
   },
-  debug: true, // Active les logs de débogage
-  logger: true, // Active le logger
+  disableFileAccess: true,
+  disableUrlAccess: true,
+  debug: false,
+  logger: false,
 });
 
 export interface EmailOptions {
@@ -28,22 +30,9 @@ export interface EmailOptions {
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
-  console.log('Right before sendemail');
-  console.log('SMTP Configuration:', {
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_SECURE,
-    user: process.env.SMTP_USER,
-    from: process.env.SMTP_FROM,
-  });
-  
   try {
-    // Vérifier la connexion SMTP avant d'envoyer
-    console.log('Vérification de la connexion SMTP...');
     await transporter.verify();
-    console.log('Connexion SMTP vérifiée avec succès');
-    
-    const info = await transporter.sendMail({
+    await transporter.sendMail({
       from: process.env.SMTP_FROM || 'noreply@cdn.userv.info',
       to: options.to,
       subject: options.subject,
@@ -51,20 +40,17 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       text: options.text,
     });
 
-    console.log('Email envoyé:', info.messageId);
     return true;
   } catch (error) {
-    console.error('Erreur envoi email:', error);
-    if (error instanceof Error) {
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
+    console.error('Erreur envoi email:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
 }
 
 export function generateResetPasswordEmail(name: string, resetUrl: string): { html: string; text: string } {
+  const escapedName = (name || 'utilisateur').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character] || character);
   const html = `
     <!DOCTYPE html>
     <html>
@@ -85,7 +71,7 @@ export function generateResetPasswordEmail(name: string, resetUrl: string): { ht
           <h1>🔐 Réinitialisation de votre mot de passe</h1>
         </div>
         <div class="content">
-          <p>Bonjour ${name || 'utilisateur'},</p>
+          <p>Bonjour ${escapedName},</p>
           
           <p>Vous avez demandé la réinitialisation de votre mot de passe sur <strong>CDN-USERV</strong>.</p>
           

@@ -13,7 +13,7 @@
 - **Fonctionnalité**: Définition d'un nouveau mot de passe sécurisé
 
 ### **3. APIs Backend**
-- **POST** `/api/auth/forgot-password`: Génère et envoie le lien par email
+- **POST** `/api/auth/request-password-reset`: Génère et envoie le lien par email
 - **POST** `/api/auth/reset-password`: Valide le token et change le mot de passe
 
 ---
@@ -53,8 +53,9 @@ SMTP_USER="votre-email@gmail.com"   # Email d'expédition
 SMTP_PASSWORD="votre-app-password"  # Mot de passe d'application Gmail
 SMTP_FROM="noreply@cdn.userv.info"  # Email expéditeur affiché
 
-# Base URL (importante pour les liens dans les emails)
-NEXTAUTH_URL="http://localhost:3000"  # URL de votre application
+# Better Auth (obligatoire en production)
+BETTER_AUTH_URL="http://localhost:3000"
+BETTER_AUTH_SECRET="une-valeur-aleatoire-d-au-moins-32-caracteres"
 ```
 
 ### **Configuration Gmail (Recommandé)**
@@ -94,20 +95,20 @@ L'email contient :
 - Pas de différence de temps de réponse notable
 
 ### **Tokens Sécurisés**
-- Génération avec `crypto.randomBytes(32)` (256 bits)
-- Stockage haché en base de données
+- Génération et validation prises en charge par Better Auth
+- Identifiants de vérification stockés sous forme hachée
 - Expiration automatique après 1 heure
 - Token à usage unique (supprimé après utilisation)
 
 ### **Validation des Mots de Passe**
-- Minimum 6 caractères (configurable)
+- Entre 12 et 128 caractères
 - Validation côté client et serveur
 - Confirmation obligatoire
 - Hachage bcrypt avec salt 12
 
 ### **Protection CSRF**
-- Utilisation de NextAuth.js
-- Tokens CSRF automatiques
+- Utilisation de Better Auth
+- Protection CSRF et validation des origines intégrées
 - Validation des origines
 
 ---
@@ -115,7 +116,7 @@ L'email contient :
 ## **🧪 Test du Système**
 
 ### **Test Manuel**
-1. **Créer un compte** sur `/auth/signup`
+1. **Migrer un compte existant** sur une base de test isolée
 2. **Aller sur** `/auth/signin`
 3. **Cliquer** "Mot de passe oublié ?"
 4. **Saisir l'email** du compte créé
@@ -144,7 +145,7 @@ L'email contient :
 
 ### **Navigation Intuitive**
 - Liens de retour vers la connexion
-- Liens vers l'inscription
+- Inscription publique fermée
 - Redirection automatique après succès
 - Breadcrumbs clairs
 
