@@ -2,6 +2,7 @@
 
 import Script from "next/script"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { TURNSTILE_LOGIN_ACTION } from "@/src/lib/turnstile"
 
 declare global {
   interface Window {
@@ -29,7 +30,7 @@ export default function TurnstileWidget({ siteKey, resetKey, onToken }: Turnstil
     containerRef.current.replaceChildren()
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
       sitekey: siteKey,
-      action: "login",
+      action: TURNSTILE_LOGIN_ACTION,
       theme: "auto",
       callback: (token: string) => onToken(token),
       "expired-callback": () => onToken(""),
@@ -54,7 +55,11 @@ export default function TurnstileWidget({ siteKey, resetKey, onToken }: Turnstil
         strategy="afterInteractive"
         onLoad={() => setScriptReady(true)}
       />
-      <div ref={containerRef} className="flex min-h-16 justify-center" />
+      <div
+        ref={containerRef}
+        className="cf-turnstile flex min-h-16 justify-center"
+        data-action={TURNSTILE_LOGIN_ACTION}
+      />
     </>
   )
 }

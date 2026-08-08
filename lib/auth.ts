@@ -1,22 +1,22 @@
 import bcrypt from "bcryptjs"
 import { betterAuth } from "better-auth"
 import { prismaAdapter } from "better-auth/adapters/prisma"
-import { captcha } from "better-auth/plugins"
 import { prisma } from "@/src/infrastructure/database/prisma"
 import { generateResetPasswordEmail, sendEmail } from "@/src/lib/email"
+import { verifyTurnstileToken } from "@/src/lib/turnstile"
 
 const baseURL = process.env.BETTER_AUTH_URL || process.env.NEXTAUTH_URL
 const secret = process.env.BETTER_AUTH_SECRET || process.env.NEXTAUTH_SECRET
-const turnstileSecretKey = process.env.TURNSTILE_SECRET_KEY
+const turnstileSecret = process.env.TURNSTILE_SECRET
 const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
 const turnstileRequired = process.env.AUTH_CAPTCHA_REQUIRED === "true"
 
 if (
-  Boolean(turnstileSecretKey) !== Boolean(turnstileSiteKey)
-  || (turnstileRequired && (!turnstileSecretKey || !turnstileSiteKey))
+  Boolean(turnstileSecret) !== Boolean(turnstileSiteKey)
+  || (turnstileRequired && (!turnstileSecret || !turnstileSiteKey))
 ) {
   throw new Error(
-    "Turnstile est requis : configurez TURNSTILE_SECRET_KEY et NEXT_PUBLIC_TURNSTILE_SITE_KEY ensemble",
+    "Turnstile est requis : configurez TURNSTILE_SECRET et NEXT_PUBLIC_TURNSTILE_SITE_KEY ensemble",
   )
 }
 
@@ -47,6 +47,45 @@ const honeypotPlugin = {
         response: Response.json(
           { code: "INVALID_CREDENTIALS", message: "Invalid credentials" },
           { status: 401 },
+        ),
+      }
+    }
+  },
+}
+
+function trustedClientIp(request: Request): string | undefined {
+  return request.headers.get("x-forwarded-for")?.split(",", 1)[0]?.trim()
+    || request.headers.get("x-real-ip")?.trim()
+    || undefined
+}
+
+const turnstilePlugin = {
+  id: "turnstile-siteverify",
+  onRequest: async (request: Request) => {
+    const pathname = new URL(request.url).pathname
+    if (!pathname.endsWith("/sign-in/email") || !turnstileSecret) return
+
+    const token = request.headers.get("x-captcha-response")?.trim()
+    if (!token) {
+      return {
+        response: Response.json(
+          { code: "CAPTCHA_MISSING_RESPONSE", message: "Captcha response is required" },
+          { status: 403 },
+        ),
+      }
+    }
+
+    const verified = await verifyTurnstileToken({
+      secret: turnstileSecret,
+      token,
+      remoteIp: trustedClientIp(request),
+      allowedHostnames: configuredTurnstileHostnames(),
+    })
+    if (!verified) {
+      return {
+        response: Response.json(
+          { code: "CAPTCHA_VERIFICATION_FAILED", message: "Captcha verification failed" },
+          { status: 403 },
         ),
       }
     }
@@ -110,14 +149,8 @@ export const auth = betterAuth({
   disabledPaths: ["/sign-up/email"],
   plugins: [
     honeypotPlugin,
-    ...(turnstileSecretKey
-      ? [captcha({
-          provider: "cloudflare-turnstile",
-          secretKey: turnstileSecretKey,
-          endpoints: ["/sign-in/email"],
-          expectedAction: "login",
-          allowedHostnames: configuredTurnstileHostnames(),
-        })]
+    ...(turnstileSecret
+      ? [turnstilePlugin]
       : []),
   ],
   rateLimit: {

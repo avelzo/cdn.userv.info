@@ -52,7 +52,7 @@ La migration est détaillée plus bas et reste une commande explicite après le 
 | `UPLOAD_MAX_CONCURRENT` | `2` | Traitements Sharp simultanés par processus |
 | `AUTH_CAPTCHA_REQUIRED` | `false` | Refuse de démarrer si Turnstile est exigé mais incomplet |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | vide | Clé publique du widget Turnstile |
-| `TURNSTILE_SECRET_KEY` | vide | Secret de validation Turnstile, serveur uniquement |
+| `TURNSTILE_SECRET` | vide | Secret de validation Turnstile, serveur uniquement |
 | `TURNSTILE_ALLOWED_HOSTNAMES` | dérivé de `BETTER_AUTH_URL` | Hôtes autorisés dans les jetons |
 | `SMTP_TLS_REJECT_UNAUTHORIZED` | `true` | Mettre explicitement `false` uniquement pour un certificat SMTP auto-signé maîtrisé |
 
@@ -175,7 +175,7 @@ Créer un widget Turnstile limité à `cdn.userv.info`, puis configurer :
 ```dotenv
 AUTH_CAPTCHA_REQUIRED=true
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=clé_publique
-TURNSTILE_SECRET_KEY=secret_serveur
+TURNSTILE_SECRET=secret_serveur
 TURNSTILE_ALLOWED_HOSTNAMES=cdn.userv.info
 ```
 
