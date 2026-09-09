@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     const filesDir = resolveInside(uploadsRoot, 'users', auth.user.id, 'files');
     const thumbsDir = resolveInside(uploadsRoot, 'users', auth.user.id, 'thumbs');
-    await Promise.all([mkdir(filesDir, { recursive: true }), mkdir(thumbsDir, { recursive: true })]);
+    await Promise.all([mkdir(filesDir, { recursive: true, mode: 0o700 }), mkdir(thumbsDir, { recursive: true, mode: 0o700 })]);
     const operationId = crypto.randomUUID();
     const originalTemp = resolveInside(filesDir, `upload-${operationId}.tmp`);
     const smallTemp = resolveInside(thumbsDir, `upload-${operationId}-small.tmp`);
@@ -136,9 +136,9 @@ export async function POST(request: NextRequest) {
     ]);
     try {
       await Promise.all([
-        writeFile(originalTemp, normalized.buffer, { flag: 'wx' }),
-        writeFile(smallTemp, small, { flag: 'wx' }),
-        writeFile(mediumTemp, medium, { flag: 'wx' }),
+        writeFile(originalTemp, normalized.buffer, { flag: 'wx', mode: 0o600 }),
+        writeFile(smallTemp, small, { flag: 'wx', mode: 0o600 }),
+        writeFile(mediumTemp, medium, { flag: 'wx', mode: 0o600 }),
       ]);
     } catch (error) {
       await Promise.allSettled([
