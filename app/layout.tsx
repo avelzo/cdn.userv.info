@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { GoogleAnalytics } from '@next/third-parties/google'
+import AnalyticsConsent from '@/src/components/AnalyticsConsent'
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/src/components/AuthProvider";
 import "./globals.css";
@@ -58,7 +58,7 @@ export default function RootLayout({
           {children}
         </AuthProvider>
       </body>
-      {isProduction?<GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA4_ID??''} />:null}
+      <AnalyticsConsent gaId={isProduction ? process.env.NEXT_PUBLIC_GA4_ID : undefined} />
     </html>
   );
 }
