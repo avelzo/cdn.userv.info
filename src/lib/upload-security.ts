@@ -92,3 +92,11 @@ export async function normalizeImage(input: Buffer, originalName: string): Promi
     height: metadata.height,
   };
 }
+
+export async function normalizeSiteThumbnail(input: Buffer, originalName: string): Promise<Buffer> {
+  const normalized = await normalizeImage(input, originalName);
+  return sharp(normalized.buffer)
+    .resize(640, 400, { fit: 'cover', position: 'centre' })
+    .webp({ quality: 85 })
+    .toBuffer();
+}

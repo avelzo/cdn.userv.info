@@ -6,10 +6,12 @@ import { resolveInside } from '../src/lib/storage-path.ts';
 import {
   isUploadSizeAllowed,
   normalizeImage,
+  normalizeSiteThumbnail,
   validateOriginalImageName,
   wouldExceedUploadQuota,
 } from '../src/lib/upload-security.ts';
 import { mayReadStoredFile } from '../src/lib/file-access-policy.ts';
+import { isInternalUploadAuthorized, isSiteThumbnailFilename } from '../src/lib/internal-upload-auth.ts';
 
 const USER_A = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 const USER_B = 'bbbbbbbbbbbbbbbbbbbbbbbb';
@@ -96,4 +98,30 @@ test('pixel quota is enforced', async () => {
     if (previous === undefined) delete process.env.UPLOAD_MAX_PIXELS;
     else process.env.UPLOAD_MAX_PIXELS = previous;
   }
+});
+
+test('internal thumbnail token must be long and exact', () => {
+  const secret = 'a'.repeat(32);
+  assert.equal(isInternalUploadAuthorized(`Bearer ${secret}`, secret), true);
+  assert.equal(isInternalUploadAuthorized(`Bearer ${'b'.repeat(32)}`, secret), false);
+  assert.equal(isInternalUploadAuthorized(null, secret), false);
+  assert.equal(isInternalUploadAuthorized('Bearer short', 'short'), false);
+});
+
+test('site thumbnail names accept only generated UUID WebP names', () => {
+  assert.equal(isSiteThumbnailFilename('123e4567-e89b-42d3-a456-426614174000.webp'), true);
+  for (const value of ['../secret.webp', 'image.webp', '123e4567-e89b-42d3-a456-426614174000.jpg']) {
+    assert.equal(isSiteThumbnailFilename(value), false);
+  }
+});
+
+test('site thumbnails are normalized to 640x400 WebP without metadata', async () => {
+  const input = await sharp({ create: { width: 100, height: 100, channels: 3, background: '#123456' } })
+    .jpeg().withMetadata({ comment: 'private metadata' }).toBuffer();
+  const output = await normalizeSiteThumbnail(input, 'thumbnail.jpg');
+  const metadata = await sharp(output).metadata();
+  assert.equal(metadata.format, 'webp');
+  assert.equal(metadata.width, 640);
+  assert.equal(metadata.height, 400);
+  assert.equal(metadata.exif, undefined);
 });
