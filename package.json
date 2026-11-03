@@ -10,6 +10,7 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types tests/security.test.mjs",
+    "test:prisma": "node --test scripts/test-prisma-security.mjs",
     "auth:inventory": "node scripts/migrate-better-auth.mjs",
     "auth:test-migration": "node scripts/test-better-auth-migration.mjs",
     "media:publish-existing": "node scripts/publish-existing-files.mjs"
@@ -42,6 +43,9 @@
     "typescript": "^6.0.3"
   },
   "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    },
     "nanoid": "3.3.18",
     "source-map-js": "1.2.2"
   }
